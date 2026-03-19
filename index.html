@@ -20,7 +20,7 @@
 
     .top-bar{background:var(--navy);padding-top:env(safe-area-inset-top,0);flex-shrink:0;z-index:20;position:sticky;top:0;}
     .top-inner{padding:.9rem 1rem .75rem;min-height:62px;display:flex;align-items:center;}
-    .top-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex:1;}
+    .top-row{display:flex;align-items:center;gap:.5rem;flex:1;}
     /* inline search — 검색 제목 옆 */
     .inline-search{flex:1;margin-left:.5rem;}
     .inline-search .search-bar{display:flex;align-items:center;background:rgba(255,255,255,.12);border-radius:10px;padding:6px 10px;gap:7px;}
@@ -210,16 +210,20 @@
           <button class="search-clear" onclick="clearSearch()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
       </div>
-      <div class="top-actions" id="top-actions">
-        <button class="icon-btn" onclick="openSettings()">
-          <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <!-- 오른쪽 버튼 그룹 — 항상 오른쪽 정렬 -->
+      <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;margin-left:auto;">
+        <!-- 설정·뉴스받기 — 어제 탭만 표시 -->
+        <div id="top-actions" class="vis-hidden" style="display:flex;align-items:center;gap:5px;">
+          <button class="icon-btn" onclick="openSettings()">
+            <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+          <button class="refresh-btn" id="refresh-btn" onclick="fetchNews()">뉴스 받기</button>
+        </div>
+        <!-- 새로고침 — 모든 탭 항상 표시 -->
+        <button class="icon-btn sync-btn" id="sync-btn" onclick="syncRefresh()" title="타 기기 동기화">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
-        <button class="refresh-btn" id="refresh-btn" onclick="fetchNews()">뉴스 받기</button>
       </div>
-      <!-- 동기화 새로고침 버튼 — 모든 탭에서 항상 표시 -->
-      <button class="icon-btn sync-btn" id="sync-btn" onclick="syncRefresh()" title="타 기기 동기화">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-      </button>
     </div>
   </div>
 </div>
@@ -665,8 +669,7 @@ function switchPage(page){
   const isToday  = page==='today';
   document.getElementById('inline-search').classList.toggle('hidden', !isSearch);
   document.getElementById('top-actions').classList.toggle('vis-hidden', !isToday);
-  // sync-btn은 모든 탭에서 항상 표시
-  document.getElementById('sync-btn').classList.remove('vis-hidden');
+
   const titles = {
     today:  yesterdayLabel,
     weekly: '주간 HR 인사이트',
