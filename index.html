@@ -18,12 +18,12 @@
     html,body{height:100%;}
     body{font-family:-apple-system,BlinkMacSystemFont,'Pretendard','Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;min-height:100dvh;}
 
-    .top-bar{background:var(--navy);padding-top:env(safe-area-inset-top,0);flex-shrink:0;z-index:20;position:sticky;top:0;overflow:visible;}
+    .top-bar{background:var(--navy);padding-top:env(safe-area-inset-top,0);flex-shrink:0;z-index:20;position:sticky;top:0;overflow:hidden;}
     .top-inner{padding:.9rem 1rem .75rem;min-height:62px;display:flex;align-items:center;overflow:visible;}
-    .top-row{display:flex;align-items:center;gap:.5rem;flex:1;padding-right:4px;}
+    .top-row{display:flex;align-items:center;gap:.5rem;flex:1;}
     /* inline search — 검색 제목 옆 */
-    .inline-search{min-width:0;overflow:hidden;margin-left:.5rem;}
-    .inline-search .search-bar{display:flex;align-items:center;background:rgba(255,255,255,.12);border-radius:10px;padding:6px 10px;gap:7px;min-width:0;overflow:hidden;}
+    .inline-search{flex:1;min-width:0;overflow:hidden;margin-left:.5rem;width:0;}
+    .inline-search .search-bar{display:flex;align-items:center;background:rgba(255,255,255,.12);border-radius:10px;padding:6px 10px;gap:7px;min-width:0;overflow:hidden;width:100%;}
     .inline-search .search-bar svg{width:14px;height:14px;stroke:rgba(255,255,255,.6);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
     .inline-search .search-bar input{background:none;border:none;color:white;font-size:14px;font-family:inherit;outline:none;flex:1;min-width:0;}
     .inline-search .search-bar input::placeholder{color:rgba(255,255,255,.35);}
@@ -220,7 +220,7 @@
         <div class="inline-search hidden" id="inline-search">
           <div class="search-bar">
             <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="search" id="search-input" placeholder="" oninput="doSearch()" autocomplete="off">
+            <input type="search" id="search-input" placeholder="" oninput="doSearch()" autocomplete="off" size="1">
             <button class="search-clear" onclick="clearSearch()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
           </div>
         </div>
