@@ -331,6 +331,18 @@
     <div class="field-label">Anthropic API 키</div>
     <input class="api-input" type="password" id="modal-api-input" placeholder="sk-ant-api03-...">
     <button class="save-btn" onclick="saveKeyModal()">저장</button>
+    <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);">
+      <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:4px;">☁️ 기기 간 동기화 (GitHub Gist)</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.6;">PC·모바일 간 기사·메모를 자동으로 동기화해요.<br>GitHub → Settings → Developer settings → Personal access tokens → gist 권한으로 발급.</div>
+      <div class="field-label">GitHub Token</div>
+      <input class="api-input" type="password" id="modal-gist-token" placeholder="ghp_...">
+      <div id="gist-status" style="font-size:11px;color:var(--muted);margin-top:4px;min-height:16px;"></div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="save-btn" style="flex:1;" onclick="saveGistToken()">Token 저장</button>
+        <button class="save-btn" style="flex:1;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;" onclick="syncFromGist()">↓ 가져오기</button>
+        <button class="save-btn" style="flex:1;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;" onclick="syncToGist()">↑ 올리기</button>
+      </div>
+    </div>
     <button class="modal-close" onclick="document.getElementById('settings-modal').classList.add('hidden')">닫기</button>
     <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);">
       <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px;">📱 매일 오전 8시 자동 알림 설정</div>
@@ -473,7 +485,8 @@ const EXCLUDE_RULES = `
 - 보훈·복지·장애인·취약계층 취업 지원 단신
 - 지역 단위 채용박람회·취업행사 공고
 - 기업 홍보성 보도자료 — MOU 체결, 솔루션 도입, 파트너십 발표
-- 단순 인사발령·임원 선임 공지
+- 단순 인사발령·임원 선임 공지 (예: "○○사, 신임 대표이사에 ○○○ 선임", "○○ 전무 부사장 승진", "○○ 국장 발령")
+- 특정 개인의 임원 발령·승진·대표 선임·회장·부회장·전무·상무·이사·국장급 인사 관련 보도
 - 특정 기업 복지 자랑성 기사
 - 특정 기업·업종의 자체적인 근무제도 도입 사례 (예: "○○은행 주 4.9일제 도입", "○○기업 유연근무 확대") — 정부 정책이 아닌 기업 자체 결정이면 제외`;
 
@@ -923,8 +936,15 @@ async function fetchNews(){
       /* 글로벌 */
       '외국인근로자','외국인 근로자','비자','고용허가','고용허가제','해외법인','해외 법인','글로벌HR','주재원','파견','현지 노동','현지법인','해외 인력','외국인 채용','E-7','E-9','H-2',
     ];
+    // 인사발령 제외 키워드
+    const EXCLUDE_APPOINT = ['신임 대표','신임대표','대표이사 선임','대표이사에 선임','으로 선임','를 선임','전무 승진','상무 승진','부사장 승진','이사 선임','임원 인사','인사 발령','인사발령','발령났','발령 났','○○○ 대표','부회장 선임','회장 선임','사장 선임','본부장 선임','국장 선임','단장 선임'];
     const hrFiltered = allArticles.filter(a => {
       const text = (a.title + ' ' + a.description).toLowerCase();
+      const titleLower = a.title.toLowerCase();
+      // 인사발령성 기사 제외
+      if(EXCLUDE_APPOINT.some(kw => titleLower.includes(kw.toLowerCase()))) return false;
+      // 제목에 "대표"+"선임"이 같이 있으면 제외
+      if(titleLower.includes('선임') && (titleLower.includes('대표') || titleLower.includes('임원') || titleLower.includes('사장') || titleLower.includes('전무') || titleLower.includes('상무'))) return false;
       return HR_KEYWORDS.some(kw => text.includes(kw.toLowerCase()));
     });
     // 필터 후 기사가 너무 적으면 원본 사용 (안전망)
@@ -1002,7 +1022,7 @@ async function fetchNews(){
     else bar.textContent='오류: '+msg;
     bar.classList.remove('hidden');
     if(archive[todayKey]) renderToday(archive[todayKey]); else showToday('empty');
-  }finally{ btn.disabled=false; }
+  }finally{ btn.disabled=false; autoSyncToGist(); }
 }
 
 async function callClaude(key, sys, prompt){
@@ -1281,7 +1301,114 @@ function saveKeyModal(){
 }
 function openSettings(){
   document.getElementById('modal-api-input').value=localStorage.getItem('hr_api_key')||'';
+  const tokenEl=document.getElementById('modal-gist-token');
+  if(tokenEl) tokenEl.value=localStorage.getItem('hr_gist_token')||'';
+  const gistId=localStorage.getItem('hr_gist_id');
+  setGistStatus(gistId ? `연결됨 (Gist ID: ${gistId.slice(0,8)}...)` : '미연결', gistId?'#16a34a':'var(--muted)');
   document.getElementById('settings-modal').classList.remove('hidden');
+}
+
+
+/* ── GIST SYNC ── */
+const GIST_KEY = 'hr_gist_token';
+const GIST_ID_KEY = 'hr_gist_id';
+const GIST_FILENAME = 'hr-daily-news-data.json';
+
+const getGistToken = () => localStorage.getItem(GIST_KEY)||'';
+const getGistId    = () => localStorage.getItem(GIST_ID_KEY)||'';
+
+function setGistStatus(msg, color='var(--muted)'){
+  const el = document.getElementById('gist-status');
+  if(el){ el.textContent = msg; el.style.color = color; }
+}
+
+function saveGistToken(){
+  const token = document.getElementById('modal-gist-token').value.trim();
+  if(!token.startsWith('ghp_') && !token.startsWith('github_pat_')){
+    alert('올바른 GitHub Token을 입력해주세요 (ghp_ 또는 github_pat_ 로 시작).');
+    return;
+  }
+  localStorage.setItem(GIST_KEY, token);
+  setGistStatus('Token 저장됨 ✓', '#16a34a');
+}
+
+async function syncToGist(){
+  const token = getGistToken();
+  if(!token){ alert('먼저 GitHub Token을 저장해주세요.'); return; }
+  setGistStatus('업로드 중...', '#2563eb');
+  try{
+    const data = {
+      hr_archive: getArchive(),
+      hr_weekly:  getWeeklyArchive(),
+      hr_memos:   getMemos(),
+      synced_at:  new Date().toISOString()
+    };
+    const body = { description:'HR daily News sync', public:false,
+      files:{ [GIST_FILENAME]:{ content: JSON.stringify(data) } } };
+    const gistId = getGistId();
+    const url = gistId ? `https://api.github.com/gists/${gistId}` : 'https://api.github.com/gists';
+    const method = gistId ? 'PATCH' : 'POST';
+    const res = await fetch(url, { method, headers:{ Authorization:`Bearer ${token}`, 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    if(!gistId) localStorage.setItem(GIST_ID_KEY, json.id);
+    setGistStatus(`업로드 완료 ✓ (${new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})})`, '#16a34a');
+  }catch(e){
+    setGistStatus('업로드 실패: '+e.message, '#dc2626');
+  }
+}
+
+async function syncFromGist(){
+  const token = getGistToken();
+  if(!token){ alert('먼저 GitHub Token을 저장해주세요.'); return; }
+  const gistId = getGistId();
+  if(!gistId){ 
+    // Gist ID 없으면 목록에서 검색
+    setGistStatus('Gist 검색 중...', '#2563eb');
+    try{
+      const res = await fetch('https://api.github.com/gists', { headers:{ Authorization:`Bearer ${token}` } });
+      const gists = await res.json();
+      const found = gists.find(g=>g.files&&g.files[GIST_FILENAME]);
+      if(!found){ setGistStatus('동기화된 데이터 없음. 먼저 다른 기기에서 ↑ 올리기를 해주세요.', '#d97706'); return; }
+      localStorage.setItem(GIST_ID_KEY, found.id);
+      await _doSyncFrom(found.id, token);
+    }catch(e){ setGistStatus('검색 실패: '+e.message, '#dc2626'); }
+    return;
+  }
+  await _doSyncFrom(gistId, token);
+}
+
+async function _doSyncFrom(gistId, token){
+  setGistStatus('다운로드 중...', '#2563eb');
+  try{
+    const res = await fetch(`https://api.github.com/gists/${gistId}`, { headers:{ Authorization:`Bearer ${token}` } });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const raw = json.files[GIST_FILENAME]?.content;
+    if(!raw) throw new Error('데이터 없음');
+    const data = JSON.parse(raw);
+    if(data.hr_archive)  localStorage.setItem('hr_archive',  JSON.stringify(data.hr_archive));
+    if(data.hr_weekly)   localStorage.setItem('hr_weekly',   JSON.stringify(data.hr_weekly));
+    if(data.hr_memos)    localStorage.setItem('hr_memos',    JSON.stringify(data.hr_memos));
+    // 화면 갱신
+    const arch = getArchive();
+    if(arch[todayKey]) renderToday(arch[todayKey]);
+    const wa = getWeeklyArchive();
+    if(wa[weekKey]) renderWeekly(wa[weekKey]);
+    const syncTime = data.synced_at ? new Date(data.synced_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+    setGistStatus(`동기화 완료 ✓ (마지막 업로드: ${syncTime})`, '#16a34a');
+  }catch(e){
+    setGistStatus('다운로드 실패: '+e.message, '#dc2626');
+  }
+}
+
+// 저장 후 자동 Gist 업로드 래퍼
+const _origSaveArchive = saveArchive;
+const _origSaveWeeklyArchive = saveWeeklyArchive;
+const _origSaveMemos = saveMemos;
+// 뉴스 받기 완료 후 자동 업로드 (fetchNews 완료 시점에 호출)
+function autoSyncToGist(){
+  if(getGistToken()) syncToGist().catch(()=>{});
 }
 
 /* ── UTILS ── */
