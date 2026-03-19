@@ -352,20 +352,22 @@ const ICO = {
 };
 
 /* ── SECTION CONFIG ── */
-const DAILY_SEC = {
-  '고용정책':{ label:'고용정책/정부동향', color:'#d97706', bg:'#fffbeb' },
-  '보상급여': { label:'보상/급여',         color:'#059669', bg:'#ecfdf5' },
+/* 7개 섹션 — 어제/주간 탭 공통. 어제=시급성, 주간=트렌드로 구분 */
+const ALL_SEC = {
+  '고용정책':   { label:'고용정책/정부동향',        color:'#d97706', bg:'#fffbeb' },
+  '보상급여':   { label:'보상/급여',                color:'#059669', bg:'#ecfdf5' },
+  '성과관리':   { label:'성과관리·평가',            color:'#ea580c', bg:'#fff7ed' },
+  '채용':       { label:'채용',                    color:'#2563eb', bg:'#eff6ff' },
+  '인재개발':   { label:'인재개발·조직문화·리더십',  color:'#db2777', bg:'#fdf2f8' },
+  'HR테크':     { label:'HR테크',                  color:'#7c3aed', bg:'#f5f3ff' },
+  '글로벌HR':   { label:'글로벌 HR',                color:'#0891b2', bg:'#ecfeff' },
+  'HBR인사이트':{ label:'HBR 인사이트',             color:'#be123c', bg:'#fff1f2' },
 };
-const WEEKLY_SEC = {
-  '성과관리':   { label:'성과관리·평가',           color:'#ea580c', bg:'#fff7ed' },
-  '채용':       { label:'채용',                   color:'#2563eb', bg:'#eff6ff' },
-  '인재개발':   { label:'인재개발·조직문화·리더십', color:'#db2777', bg:'#fdf2f8' },
-  'HR테크':     { label:'HR테크',                 color:'#7c3aed', bg:'#f5f3ff' },
-  '글로벌HR':   { label:'글로벌 HR',               color:'#0891b2', bg:'#ecfeff' },
-  'HBR인사이트':{ label:'HBR 인사이트',            color:'#be123c', bg:'#fff1f2' },
-};
-const DAILY_ORDER   = ['고용정책','보상급여'];
-const WEEKLY_ORDER  = ['성과관리','채용','인재개발','HR테크','글로벌HR','HBR인사이트'];
+const DAILY_SEC    = ALL_SEC;
+const WEEKLY_SEC   = ALL_SEC;
+const ALL_ORDER    = ['고용정책','보상급여','성과관리','채용','인재개발','HR테크','글로벌HR','HBR인사이트'];
+const DAILY_ORDER  = ALL_ORDER;
+const WEEKLY_ORDER = ALL_ORDER;
 
 /* ── PROMPTS ── */
 const RSS_FEEDS = [
@@ -467,52 +469,54 @@ const EXCLUDE_RULES = `
 - 특정 기업·업종의 자체적인 근무제도 도입 사례 (예: "○○은행 주 4.9일제 도입", "○○기업 유연근무 확대") — 정부 정책이 아닌 기업 자체 결정이면 제외`;
 
 const SYS_DAILY = `당신은 대기업 HR 담당자를 위한 전문 뉴스 큐레이터입니다.
-어제 하루 동안 보도된 기사 중 HR 담당자가 반드시 알아야 할 가장 중요한 기사를 섹션별로 최대 3건씩 선정해 요약하세요.
+어제 하루 보도된 기사 중 HR 담당자가 지금 당장 알아야 할 시급한 기사를 8개 섹션으로 분류·요약하세요.
 코드블록, 마크다운, 설명 없이 순수 JSON만 출력하세요:
-{"date":"날짜","sections":{"고용정책":[{"title":"제목","summary":"2-3문장 요약","source":"출처","url":"URL"}],"보상급여":[...]}}
+{"date":"날짜","sections":{"고용정책":[{"title":"제목","summary":"2-3문장 요약","source":"출처","url":"URL"}],"보상급여":[...],"성과관리":[...],"채용":[...],"인재개발":[...],"HR테크":[...],"글로벌HR":[...],"HBR인사이트":[{"title":"영문 원제","summary":"한국어 2-3문장 요약","source":"HBR","url":"URL"}]}}
 
-[섹션별 포함 기준 — 반드시 확인]
-고용정책/정부동향:
-  ✓ 고용노동부·기재부·국회 등 중앙부처/정부기관이 주체인 정책 발표·법령 개정·행정예고
-  ✓ 국회 본회의·상임위 통과, 대법원·헌법재판소 노동 관련 판결
-  ✗ 기업이 자체적으로 도입한 제도 변화 (예: "○○사 주4일제 도입") — 정부 발표 아니면 제외
-  ✗ 업종/산업 내 기업들의 트렌드 보도 (예: "은행권 주 4.9일제 확산") — 정부 정책 아니면 제외
+[어제 탭 선정 기준 — "시급성"]
+다음 조건 중 하나라도 해당하면 선택:
+- 오늘 또는 어제 발표·시행된 정부 정책, 법령 개정, 행정예고
+- HR 담당자가 이번 주 내로 대응 조치를 취해야 하는 내용
+- 대법원·헌재 노동 판결, 국회 통과 법안
+- 채용 공고 마감·전형 일정 등 즉각 확인이 필요한 정보
 
-보상/급여:
-  ✓ 최저임금 결정·고시, 임금체계 개편 정책, 통상임금 판결
-  ✓ 전국 단위 임금 실태조사, 연봉 협상 트렌드 (전체 산업 대상)
-  ✗ 특정 기업·업종의 연봉·성과급 단순 보도
-
-[공통 선정 기준]
-- 다수 기업 HR 담당자가 즉각 대응해야 할 내용
-- 같은 주제 중복 금지 — 신뢰도 높은 출처 1건만
+[섹션별 포함 기준]
+고용정책/정부동향: 중앙부처(고용노동부·기재부·국회 등) 정책·법령. 기업 자체 제도 변화는 제외.
+보상/급여: 최저임금 고시·통상임금 판결·임금체계 개편 시행 등 즉각 적용 필요 사항.
+성과관리·평가: 성과평가 제도 법령화, 정부 가이드라인 발표 등 시급한 변화.
+채용: 채용 관련 법령 변경, 대규모 채용 일정 공고 등 즉각 확인 필요 사항.
+인재개발·조직문화·리더십: 교육 의무화, 직장 내 괴롭힘·안전 관련 시행 등.
+HR테크: 인사 시스템 관련 법적 의무 변경, 데이터 보호 규정 시행 등.
+글로벌 HR: 외국인 고용 비자 정책 변경, 해외 법인 노동법 시행 등.
+HBR인사이트: 시급성 있는 HBR 아티클. 제목은 영문 원제, 요약은 한국어.
 
 ${EXCLUDE_RULES}
-섹션당 최대 3건. 기사가 없는 섹션은 빈 배열. URL은 원본 그대로.`;
+섹션당 최대 3건. 시급성 없는 기사는 제외. 기사가 없는 섹션은 빈 배열. URL은 원본 그대로.`;
 
 const SYS_WEEKLY = `당신은 대기업 HR 담당자를 위한 전문 뉴스 큐레이터입니다.
-수집된 기사 중 이번 주 HR 업계의 중요한 트렌드·인사이트를 4개 섹션으로 분류·요약하세요.
+수집된 기사 중 이번 주 HR 업계의 주요 트렌드·인사이트를 8개 섹션으로 분류·요약하세요.
 코드블록, 마크다운, 설명 없이 순수 JSON만 출력하세요:
-{"weekLabel":"MM월 N주차","sections":{"성과관리":[{"title":"제목","summary":"2-3문장 요약","source":"출처","url":"URL"}],"채용":[...],"인재개발":[...],"HR테크":[...],"글로벌HR":[...],"HBR인사이트":[{"title":"영문 원제","summary":"한국어 2-3문장 요약","source":"HBR","url":"URL"}]}}
+{"weekLabel":"MM월 N주차","sections":{"고용정책":[{"title":"제목","summary":"2-3문장 요약","source":"출처","url":"URL"}],"보상급여":[...],"성과관리":[...],"채용":[...],"인재개발":[...],"HR테크":[...],"글로벌HR":[...],"HBR인사이트":[{"title":"영문 원제","summary":"한국어 2-3문장 요약","source":"HBR","url":"URL"}]}}
 
-[포함 기준 — 아래 조건을 모두 충족해야 선택]
-1. HR·조직문화·인재개발·리더십·성과관리·성과평가·HR테크·글로벌HR 중 하나와 직접 관련
-2. 단순 기업 사례 나열이 아닌, 산업 전반의 트렌드·연구·인사이트를 담은 기사
-3. HR 담당자가 중장기적으로 참고할 만한 내용
+[주간 탭 선정 기준 — "트렌드·인사이트"]
+다음 조건 중 하나라도 해당하면 선택:
+- 단기 대응보다 중장기적으로 HR 전략에 영향을 미치는 산업 트렌드
+- 연구·조사 결과, 전문가 칼럼, 해외 사례 분석
+- 기업들의 제도 변화 확산 동향 (개별 기업 사례 아닌 업계 전반 흐름)
+- HBR·DBR 등 전문 매거진의 인사이트
 
-[판단 기준 — 아래 질문에 "예"여야 선택]
-- 이 기사가 HR 전략이나 조직 설계에 영향을 줄 수 있는가?
-- 단순 보도가 아닌, 분석·연구·칼럼·인사이트 성격인가?
+[섹션별 포함 기준]
+고용정책/정부동향: 정책 방향·입법 예고·중장기 고용 대책 등 향후 변화 예고.
+보상/급여: 임금 트렌드, 보상 체계 변화 흐름, 성과급 제도 변화 분석.
+성과관리·평가: 성과평가 방식 트렌드, OKR·KPI 운영 사례, 평가 피드백 문화.
+채용: 채용 시장 트렌드, 수시채용 확대, AI 면접 도입 흐름, 직무 중심 채용 변화.
+인재개발·조직문화·리더십: 조직문화·직원경험·리스킬링·코칭·일하는 방식 트렌드.
+HR테크: HRMS·피플애널리틱스·AI 인사관리 트렌드, HR 소프트웨어 동향.
+글로벌 HR: 글로벌 HR 트렌드, 해외 노동시장 변화, 다국적 기업 HR 사례.
+HBR인사이트: HR·리더십·조직·성과관리 관련 HBR 아티클. 제목은 영문 원제, 요약은 한국어.
 
 ${EXCLUDE_RULES}
-섹션 분류 기준:
-- 성과관리: 성과평가 방식·제도·도구, OKR·KPI 운영, 평가 피드백, 성과관리 트렌드
-- 채용: 채용 시장 동향·트렌드, 수시채용·공채, AI 면접, 직무 중심 채용, 채용 프로세스 변화
-- 인재개발: 기업교육·HRD·리스킬링·코칭·조직문화·직원경험·일하는 방식·리더십·팀 운영
-- HR테크: HRMS·AI 인사관리·피플애널리틱스·채용 자동화·HR 소프트웨어
-- 글로벌HR: 해외 법인·외국인 고용·글로벌 HR 트렌드·다국적 기업 인사
-- HBR인사이트: HBR 기사 전용. 제목은 영문 원제, 요약은 한국어.
-섹션당 최대 3건, 유사 주제 중복 금지. 기사가 없는 섹션은 빈 배열. URL은 원본 그대로.`;
+섹션당 최대 3건, 유사 주제 중복 금지. 기사가 없는 섹션은 빈 배열. URL은 원본 그대로.`
 
 /* ── STATE ── */
 let currentPage = 'today';
@@ -622,7 +626,7 @@ function renderWeekly(data){
   const weekLabel = data.weekLabel || '';
   const updatedAt = data.fetchedAt ? new Date(data.fetchedAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
   const nextUpdate = isMonday ? '다음 주 월요일' : '다음 월요일';
-  wrap.innerHTML = `<div class="weekly-info">${ICO.info}<div class="weekly-info-text"><strong>${weekLabel}</strong> 핵심 HR 트렌드 · ${updatedAt} 업데이트 · ${nextUpdate}에 갱신</div></div>`;
+  wrap.innerHTML = `<div class="weekly-info">${ICO.info}<div class="weekly-info-text"><strong>${weekLabel}</strong> HR 트렌드·인사이트 · ${updatedAt} 업데이트 · ${nextUpdate}에 갱신</div></div>`;
 
   WEEKLY_ORDER.forEach(key=>{
     const s = WEEKLY_SEC[key];
@@ -647,11 +651,15 @@ function newsCardHTML(dateStr, secKey, idx, it, s){
   const memo = memos[aKey]||'';
   const hasMemo = memo.length > 0;
   const isHBR = secKey === 'HBR인사이트';
+  const isWeekly = dateStr.startsWith('w_');
   const memoSvg = ICO.memo.replace('stroke-linecap="round" stroke-linejoin="round"',
     `stroke-linecap="round" stroke-linejoin="round" stroke="${hasMemo?'#f59e0b':'#9ca3af'}"`);
   const memoBtn = `<button class="memo-toggle${hasMemo?' has-memo':''}" onclick="toggleMemo('${aKey}')">${memoSvg}</button>`;
   const linkHtml = it.url ? `<a class="news-link" href="${it.url}" target="_blank">원문${ICO.link}</a>` : '';
-  const moveBtn = `<button class="move-btn" onclick="openReclassify('${aKey}','${escAttr(it.title||'')}','${dateStr}','${secKey}')" title="섹션 이동"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#9ca3af" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="17,1 21,5 17,9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7,23 3,19 7,15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></button>`;
+  // 재분류: JS 저장소에 데이터 저장 후 키만 onclick에 전달 (특수문자 안전)
+  const rcKey = 'rc_'+aKey;
+  _rcStore[rcKey] = {aKey, title: it.title||'', dateStr, secKey, isWeekly};
+  const moveBtn = `<button class="move-btn" onclick="openReclassify('${rcKey}')" title="섹션 이동"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#9ca3af" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="17,1 21,5 17,9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7,23 3,19 7,15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></button>`;
   const memoSection = hasMemo
     ? `<div class="memo-area" id="memo-area-${aKey}"><div class="memo-display">${escHtml(memo)}</div><button class="memo-edit-btn" onclick="editMemo('${aKey}','${escAttr(memo)}')">수정</button></div>`
     : `<div class="memo-area hidden" id="memo-area-${aKey}"><textarea class="memo-input" id="memo-input-${aKey}" rows="2" placeholder="메모를 남겨보세요"></textarea><div class="memo-actions"><button class="memo-cancel" onclick="closeMemo('${aKey}')">취소</button><button class="memo-save" onclick="saveMemo('${aKey}')">저장</button></div></div>`;
@@ -697,24 +705,46 @@ function cancelEditMemo(aKey,val){
 }
 
 /* ── RECLASSIFY ── */
+const _rcStore = {}; // 재분류용 임시 데이터 저장소
 let _reclassifyCtx = null;
 
-function openReclassify(aKey, title, dateStr, currentSec){
-  _reclassifyCtx = {aKey, dateStr, currentSec};
-  document.getElementById('reclassify-article-title').textContent = title;
+function openReclassify(storeKey){
+  const ctx = _rcStore[storeKey];
+  if(!ctx) return;
+  _reclassifyCtx = ctx;
+  document.getElementById('reclassify-article-title').textContent = ctx.title;
 
-  // 이동 가능한 섹션 목록 (현재 섹션 제외)
-  const isWeekly = dateStr.startsWith('w_');
-  const allSecs = isWeekly ? WEEKLY_SEC : {...DAILY_SEC, ...WEEKLY_SEC};
+  // 이동 가능한 섹션 — 현재 섹션은 표시하되 비활성(현재 위치 표시용)
   const btns = document.getElementById('reclassify-buttons');
   btns.innerHTML = '';
-  Object.entries(allSecs).forEach(([key, s])=>{
-    if(key === currentSec) return;
+
+  const makeBtn = (key, s, isCurrent, targetType) => {
     const btn = document.createElement('button');
-    btn.style.cssText = `background:${s.bg};color:${s.color};border:1.5px solid ${s.color}33;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;text-align:left;`;
-    btn.textContent = s.label;
-    btn.onclick = () => doReclassify(key);
+    if(isCurrent){
+      btn.style.cssText=`background:#f3f4f6;color:#9ca3af;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;font-family:inherit;cursor:default;text-align:left;width:100%;`;
+      btn.textContent=s.label + '  ← 현재';
+    } else {
+      btn.style.cssText=`background:${s.bg};color:${s.color};border:1.5px solid ${s.color}33;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;text-align:left;width:100%;`;
+      btn.textContent=s.label;
+      btn.onclick=()=>doReclassify(key, targetType);
+    }
     btns.appendChild(btn);
+  };
+
+  const lbl1 = document.createElement('div');
+  lbl1.style.cssText='font-size:11px;color:#9ca3af;font-weight:500;margin-bottom:4px;';
+  lbl1.textContent='어제 탭 섹션';
+  btns.appendChild(lbl1);
+  Object.entries(DAILY_SEC).forEach(([key,s])=>{
+    makeBtn(key, s, key===ctx.secKey, 'daily');
+  });
+
+  const lbl2 = document.createElement('div');
+  lbl2.style.cssText='font-size:11px;color:#9ca3af;font-weight:500;margin:8px 0 4px;';
+  lbl2.textContent='주간 탭 섹션';
+  btns.appendChild(lbl2);
+  Object.entries(WEEKLY_SEC).forEach(([key,s])=>{
+    makeBtn(key, s, key===ctx.secKey, 'weekly');
   });
   document.getElementById('reclassify-modal').classList.remove('hidden');
 }
@@ -724,43 +754,62 @@ function closeReclassify(){
   _reclassifyCtx = null;
 }
 
-function doReclassify(targetSec){
+function doReclassify(targetSec, targetType){
   if(!_reclassifyCtx) return;
-  const {aKey, dateStr, currentSec} = _reclassifyCtx;
-  const isWeekly = dateStr.startsWith('w_');
-  const wk = isWeekly ? dateStr.replace('w_','') : null;
+  const {aKey, dateStr, secKey, isWeekly} = _reclassifyCtx;
+  const targetIsWeekly = targetType === 'weekly';
 
+  // 원본 아카이브에서 기사 꺼내기
+  let article = null;
   if(isWeekly){
+    const wk = dateStr.replace('w_','');
     const wa = getWeeklyArchive();
     const data = wa[wk];
     if(!data) return;
-    // aKey 형식: w_WEEKKEY_SECKEY_IDX
-    const parts = aKey.split('_');
-    const idx = parseInt(parts[parts.length-1]);
-    const items = data.sections[currentSec]||[];
-    const article = items[idx];
+    const idx = parseInt(aKey.split('_').pop());
+    const items = data.sections[secKey]||[];
+    article = items[idx];
     if(!article) return;
-    // 원래 섹션에서 제거
-    data.sections[currentSec] = items.filter((_,i)=>i!==idx);
-    // 대상 섹션에 추가
-    if(!data.sections[targetSec]) data.sections[targetSec]=[];
-    data.sections[targetSec].push(article);
+    data.sections[secKey] = items.filter((_,i)=>i!==idx);
     saveWeeklyArchive(wa);
-    renderWeekly(wa[wk]);
+    if(!targetIsWeekly){
+      // 주간 → 일간: 오늘 일간 아카이브에 추가
+      const a = getArchive();
+      if(!a[todayKey]) a[todayKey] = {sections:{}};
+      if(!a[todayKey].sections[targetSec]) a[todayKey].sections[targetSec]=[];
+      a[todayKey].sections[targetSec].push(article);
+      saveArchive(a);
+    } else {
+      // 주간 → 주간
+      if(!data.sections[targetSec]) data.sections[targetSec]=[];
+      data.sections[targetSec].push(article);
+      saveWeeklyArchive(wa);
+    }
+    renderWeekly(wa[dateStr.replace('w_','')]||getWeeklyArchive()[weekKey]);
+    if(!targetIsWeekly && currentPage==='today') renderToday(getArchive()[todayKey]);
   } else {
     const a = getArchive();
     const data = a[dateStr];
     if(!data) return;
-    const parts = aKey.split('_');
-    const idx = parseInt(parts[parts.length-1]);
-    const items = data.sections[currentSec]||[];
-    const article = items[idx];
+    const idx = parseInt(aKey.split('_').pop());
+    const items = data.sections[secKey]||[];
+    article = items[idx];
     if(!article) return;
-    data.sections[currentSec] = items.filter((_,i)=>i!==idx);
-    if(!data.sections[targetSec]) data.sections[targetSec]=[];
-    data.sections[targetSec].push(article);
+    data.sections[secKey] = items.filter((_,i)=>i!==idx);
+    if(targetIsWeekly){
+      // 일간 → 주간: 현재 주차 주간 아카이브에 추가
+      const wa = getWeeklyArchive();
+      if(!wa[weekKey]) wa[weekKey] = {sections:{}};
+      if(!wa[weekKey].sections[targetSec]) wa[weekKey].sections[targetSec]=[];
+      wa[weekKey].sections[targetSec].push(article);
+      saveWeeklyArchive(wa);
+      renderWeekly(wa[weekKey]);
+    } else {
+      // 일간 → 일간
+      if(!data.sections[targetSec]) data.sections[targetSec]=[];
+      data.sections[targetSec].push(article);
+    }
     saveArchive(a);
-    // 현재 페이지가 today면 다시 렌더
     if(currentPage==='today' && dateStr===todayKey) renderToday(data);
     else if(currentPage==='date') showDateDetail(dateStr);
   }
@@ -853,7 +902,7 @@ async function fetchNews(){
     /* 3. Claude — 오늘 (Daily) */
     const yesterdayStr = yesterday.toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
     const dailyResp = await callClaude(anthropicKey, SYS_DAILY,
-      `어제 날짜: ${yesterdayStr}\n\n아래는 어제 수집된 기사입니다. 섹션별로 어제 가장 중요한 기사 1건을 선정해 요약해주세요.\n\n${articleList}\n\n출처 우선순위: 고용노동부·연합뉴스·한국경제·매일경제·조선일보·중앙일보·동아일보·서울경제 우선.`);
+      `어제 날짜: ${yesterdayStr}\n\n아래 기사 중 HR 담당자가 지금 당장 알아야 할 시급한 기사를 8개 섹션으로 분류·요약해주세요.\n\n${articleList}\n\n출처 우선순위: 고용노동부·연합뉴스·한국경제·매일경제·조선일보·중앙일보·동아일보·서울경제 우선.`);
     const dailyParsed = JSON.parse(dailyResp.replace(/\`\`\`json\s*/g,'').replace(/\`\`\`\s*/g,'').trim());
     const fetchedAt = new Date().toISOString();
     archive[todayKey] = {...dailyParsed, fetchedAt};
@@ -866,7 +915,7 @@ async function fetchNews(){
     if(!weeklyArchive[weekKey] || isMonday){
       const weekLabel = getWeekLabel();
       const weeklyResp = await callClaude(anthropicKey, SYS_WEEKLY,
-        `이번 주(${weekLabel}) HR 트렌드 분석\n\n${articleList}${hbrList}`);
+        `이번 주(${weekLabel}) HR 트렌드·인사이트 분석\n\n아래 기사 중 중장기 트렌드·인사이트 성격의 기사를 8개 섹션으로 분류·요약해주세요.\n\n${articleList}${hbrList}`);
       const weeklyParsed = JSON.parse(weeklyResp.replace(/\`\`\`json\s*/g,'').replace(/\`\`\`\s*/g,'').trim());
       weeklyArchive[weekKey] = {...weeklyParsed, fetchedAt, weekLabel};
       saveWeeklyArchive(weeklyArchive);
