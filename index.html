@@ -22,7 +22,7 @@
     .top-inner{padding:.9rem 1rem .75rem;min-height:62px;display:flex;align-items:center;overflow:visible;}
     .top-row{display:flex;align-items:center;gap:.5rem;flex:1;padding-right:4px;}
     /* inline search — 검색 제목 옆 */
-    .inline-search{flex:1;min-width:0;overflow:hidden;margin-left:.5rem;}
+    .inline-search{min-width:0;overflow:hidden;margin-left:.5rem;}
     .inline-search .search-bar{display:flex;align-items:center;background:rgba(255,255,255,.12);border-radius:10px;padding:6px 10px;gap:7px;min-width:0;overflow:hidden;}
     .inline-search .search-bar svg{width:14px;height:14px;stroke:rgba(255,255,255,.6);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
     .inline-search .search-bar input{background:none;border:none;color:white;font-size:14px;font-family:inherit;outline:none;flex:1;min-width:0;}
@@ -160,10 +160,11 @@
     .back-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
 
     /* search */
-    .search-hint{text-align:center;padding:2.5rem 1rem;}
-    .search-hint-icon{width:48px;height:48px;border-radius:14px;background:white;border:1px solid var(--border);margin:0 auto .75rem;display:flex;align-items:center;justify-content:center;}
-    .search-hint-icon svg{width:22px;height:22px;stroke:#9ca3af;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
-    .search-hint-text{font-size:13px;color:var(--muted);line-height:1.6;}
+    .search-hint{text-align:center;padding:3.5rem 1rem;}
+    .search-hint-icon{width:56px;height:56px;border-radius:16px;background:white;border:1px solid var(--border);margin:0 auto .875rem;display:flex;align-items:center;justify-content:center;}
+    .search-hint-icon svg{width:26px;height:26px;stroke:#9ca3af;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
+    .search-hint-text{font-size:15px;font-weight:600;margin-bottom:5px;}
+    .search-hint-sub{font-size:12px;color:var(--muted);line-height:1.6;}
     .search-result-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:8px;}
     .search-date-label{font-size:11px;color:var(--muted);margin:10px 0 5px;font-weight:500;}
     .search-count{font-size:12px;color:var(--muted);margin-bottom:.75rem;}
@@ -311,7 +312,8 @@
   <div id="search-results">
     <div class="search-hint">
       <div class="search-hint-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
-      <div class="search-hint-text">검색어를 입력하세요<br>기사 제목, 요약, 메모를 통합 검색합니다</div>
+      <div class="search-hint-text">검색어를 입력하세요</div>
+      <div class="search-hint-sub">기사 제목, 요약, 메모를 통합 검색합니다</div>
     </div>
   </div>
 </div>
@@ -1501,7 +1503,7 @@ function backToList(){
 function doSearch(){
   const q = document.getElementById('search-input').value.trim();
   const wrap = document.getElementById('search-results');
-  const hint = `<div class="search-hint"><div class="search-hint-icon">${ICO.search}</div><div class="search-hint-text">검색어를 입력하세요<br>기사 제목, 요약, 메모를 통합 검색합니다</div></div>`;
+  const hint = `<div class="search-hint"><div class="search-hint-icon">${ICO.search}</div><div class="search-hint-text">검색어를 입력하세요</div><div class="search-hint-sub">기사 제목, 요약, 메모를 통합 검색합니다</div></div>`;
   if(!q){wrap.innerHTML=hint;return;}
   const memos = getMemos();
   const results = [];
@@ -1527,7 +1529,7 @@ function doSearch(){
       });
     });
   });
-  if(!results.length){wrap.innerHTML=`<div class="search-hint"><div class="search-hint-icon">${ICO.search}</div><div class="search-hint-text">"${escHtml(q)}"에 해당하는 기사가 없어요</div></div>`;return;}
+  if(!results.length){wrap.innerHTML=`<div class="search-hint"><div class="search-hint-icon">${ICO.search}</div><div class="search-hint-text">검색 결과가 없어요</div><div class="search-hint-sub">"${escHtml(q)}"에 해당하는 기사가 없습니다</div></div>`;return;}
   const hl = txt=>escHtml(txt).replace(new RegExp(escRegex(q),'gi'),m=>`<span class="highlight">${m}</span>`);
   const grouped = {};
   results.forEach(r=>{ const lbl=r.isWeekly?(getWeeklyArchive()[r.wk]?.weekLabel||r.wk):r.dateStr; if(!grouped[lbl])grouped[lbl]=[]; grouped[lbl].push(r); });
