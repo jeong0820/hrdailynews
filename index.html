@@ -1708,6 +1708,47 @@ const escHtml = s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(
 const escAttr = s=>String(s).replace(/'/g,'&#39;').replace(/\n/g,'\\n');
 const escRegex = s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 
+
+/* ── SWIPE BACK (아이폰 제스처) ── */
+(function(){
+  let startX = 0, startY = 0, startTime = 0;
+  const EDGE = 30;      // 화면 왼쪽 끝 30px 이내에서 시작해야 인식
+  const MIN_X = 60;     // 최소 수평 이동 거리
+  const MAX_Y = 80;     // 최대 수직 이동 허용 (이보다 크면 스크롤로 판단)
+  const MAX_T = 400;    // 최대 제스처 시간(ms)
+
+  document.addEventListener('touchstart', e => {
+    const t = e.touches[0];
+    startX = t.clientX;
+    startY = t.clientY;
+    startTime = Date.now();
+  }, { passive: true });
+
+  document.addEventListener('touchend', e => {
+    const t = e.changedTouches[0];
+    const dx = t.clientX - startX;
+    const dy = Math.abs(t.clientY - startY);
+    const dt = Date.now() - startTime;
+
+    // 왼쪽 엣지에서 시작 + 오른쪽으로 충분히 스와이프 + 수직 이동 적음 + 빠름
+    if(startX <= EDGE && dx >= MIN_X && dy <= MAX_Y && dt <= MAX_T){
+      // 날짜별 탭 — 상세 화면이 열려있으면 뒤로
+      if(currentPage === 'date'){
+        const detail = document.getElementById('date-detail');
+        if(detail && !detail.classList.contains('hidden')){
+          backToList(); return;
+        }
+      }
+      // 주제별 탭 — 상세 화면이 열려있으면 뒤로
+      if(currentPage === 'topic'){
+        const detail = document.getElementById('topic-detail');
+        if(detail && !detail.classList.contains('hidden')){
+          backToTopicList(); return;
+        }
+      }
+    }
+  }, { passive: true });
+})();
 /* ── SPLASH ── */
 (function(){
   const s=document.getElementById('splash');
