@@ -93,6 +93,7 @@
     .news-link{font-size:11px;color:#2563eb;text-decoration:none;white-space:nowrap;display:flex;align-items:center;gap:3px;}
     .news-link svg{width:11px;height:11px;stroke:#2563eb;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
     .memo-toggle{background:none;border:none;cursor:pointer;padding:2px 3px;display:flex;align-items:center;}
+    .move-btn{background:none;border:none;cursor:pointer;padding:2px 3px;display:flex;align-items:center;}
     .memo-toggle svg{width:15px;height:15px;stroke:#9ca3af;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
     .memo-toggle.has-memo svg{stroke:#f59e0b;}
     .memo-area{margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
@@ -304,7 +305,16 @@
   </button>
 </nav>
 
-<!-- SETTINGS MODAL -->
+<!-- RECLASSIFY MODAL -->
+<div class="modal-overlay hidden" id="reclassify-modal" onclick="if(event.target===this)closeReclassify()">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">다른 섹션으로 이동</div>
+    <div id="reclassify-article-title" style="font-size:12px;color:var(--muted);margin-bottom:1rem;line-height:1.5;background:#f9fafb;padding:8px 10px;border-radius:8px;"></div>
+    <div id="reclassify-buttons" style="display:flex;flex-direction:column;gap:7px;"></div>
+    <button class="modal-close" onclick="closeReclassify()" style="margin-top:10px;">취소</button>
+  </div>
+</div>
 <div class="modal-overlay hidden" id="settings-modal" onclick="if(event.target===this)this.classList.add('hidden')">
   <div class="modal-sheet" onclick="event.stopPropagation()">
     <div class="modal-handle"></div>
@@ -447,31 +457,37 @@ async function fetchRSS(feedUrl, name){
 const EXCLUDE_RULES = `
 제외 기준 (절대 포함 금지):
 - 지역 고용노동지청·고용센터의 설명회·간담회 (예: "양산고용노동지청, ○○법 설명회")
-- 특정 학교·기관의 정부 사업 선정·수상 (예: "○○대, K-Move 스쿨 선정", "○○기관 우수기관 선정")
+- 특정 학교·기관의 정부 사업 선정·수상 (예: "○○대, K-Move 스쿨 선정")
 - 특정 기업 개인 연봉·성과급 단순 보도 (예: "○○ 회장 연봉 78% 증가")
 - 보훈·복지·장애인·취약계층 취업 지원 단신
 - 지역 단위 채용박람회·취업행사 공고
 - 기업 홍보성 보도자료 — MOU 체결, 솔루션 도입, 파트너십 발표
 - 단순 인사발령·임원 선임 공지
-- 특정 기업 복지 자랑성 기사`;
+- 특정 기업 복지 자랑성 기사
+- 특정 기업·업종의 자체적인 근무제도 도입 사례 (예: "○○은행 주 4.9일제 도입", "○○기업 유연근무 확대") — 정부 정책이 아닌 기업 자체 결정이면 제외`;
 
 const SYS_DAILY = `당신은 대기업 HR 담당자를 위한 전문 뉴스 큐레이터입니다.
 어제 하루 동안 보도된 기사 중 HR 담당자가 반드시 알아야 할 가장 중요한 기사를 섹션별로 최대 3건씩 선정해 요약하세요.
 코드블록, 마크다운, 설명 없이 순수 JSON만 출력하세요:
 {"date":"날짜","sections":{"고용정책":[{"title":"제목","summary":"2-3문장 요약","source":"출처","url":"URL"}],"보상급여":[...]}}
 
-[선정 기준 — 섹션별로 어제 임팩트가 컸던 기사 최대 3건 선택]
-1. HR·노동·고용·임금·조직문화 중 하나 이상과 직접 관련
-2. 중앙부처(고용노동부·기재부·국회 등) 정책 발표, 법령 개정, 전국 단위 변화
-3. 다수 기업 HR 담당자가 즉각 대응해야 할 내용
-4. 같은 주제를 다룬 기사가 여러 개면 가장 정보가 풍부하고 신뢰도 높은 출처의 기사만 선택 (주제 중복 금지)
+[섹션별 포함 기준 — 반드시 확인]
+고용정책/정부동향:
+  ✓ 고용노동부·기재부·국회 등 중앙부처/정부기관이 주체인 정책 발표·법령 개정·행정예고
+  ✓ 국회 본회의·상임위 통과, 대법원·헌법재판소 노동 관련 판결
+  ✗ 기업이 자체적으로 도입한 제도 변화 (예: "○○사 주4일제 도입") — 정부 발표 아니면 제외
+  ✗ 업종/산업 내 기업들의 트렌드 보도 (예: "은행권 주 4.9일제 확산") — 정부 정책 아니면 제외
 
-[판단 기준]
-- 이 기사를 몰랐다면 HR 운영에 문제가 생길 수 있는가?
-- 어제 가장 많이 다뤄진 HR 이슈인가?
+보상/급여:
+  ✓ 최저임금 결정·고시, 임금체계 개편 정책, 통상임금 판결
+  ✓ 전국 단위 임금 실태조사, 연봉 협상 트렌드 (전체 산업 대상)
+  ✗ 특정 기업·업종의 연봉·성과급 단순 보도
+
+[공통 선정 기준]
+- 다수 기업 HR 담당자가 즉각 대응해야 할 내용
+- 같은 주제 중복 금지 — 신뢰도 높은 출처 1건만
 
 ${EXCLUDE_RULES}
-섹션 분류: 고용정책(정부·법령), 보상급여(임금·성과급)
 섹션당 최대 3건. 기사가 없는 섹션은 빈 배열. URL은 원본 그대로.`;
 
 const SYS_WEEKLY = `당신은 대기업 HR 담당자를 위한 전문 뉴스 큐레이터입니다.
@@ -635,6 +651,7 @@ function newsCardHTML(dateStr, secKey, idx, it, s){
     `stroke-linecap="round" stroke-linejoin="round" stroke="${hasMemo?'#f59e0b':'#9ca3af'}"`);
   const memoBtn = `<button class="memo-toggle${hasMemo?' has-memo':''}" onclick="toggleMemo('${aKey}')">${memoSvg}</button>`;
   const linkHtml = it.url ? `<a class="news-link" href="${it.url}" target="_blank">원문${ICO.link}</a>` : '';
+  const moveBtn = `<button class="move-btn" onclick="openReclassify('${aKey}','${escAttr(it.title||'')}','${dateStr}','${secKey}')" title="섹션 이동"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#9ca3af" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="17,1 21,5 17,9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7,23 3,19 7,15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></button>`;
   const memoSection = hasMemo
     ? `<div class="memo-area" id="memo-area-${aKey}"><div class="memo-display">${escHtml(memo)}</div><button class="memo-edit-btn" onclick="editMemo('${aKey}','${escAttr(memo)}')">수정</button></div>`
     : `<div class="memo-area hidden" id="memo-area-${aKey}"><textarea class="memo-input" id="memo-input-${aKey}" rows="2" placeholder="메모를 남겨보세요"></textarea><div class="memo-actions"><button class="memo-cancel" onclick="closeMemo('${aKey}')">취소</button><button class="memo-save" onclick="saveMemo('${aKey}')">저장</button></div></div>`;
@@ -646,7 +663,7 @@ function newsCardHTML(dateStr, secKey, idx, it, s){
     <p class="news-summary">${escHtml(it.summary||'')}</p>
     <div class="news-footer">
       <span class="news-source${isHBR?' hbr-src':''}">${escHtml(it.source||'')}</span>
-      <div class="footer-actions">${linkHtml}${memoBtn}</div>
+      <div class="footer-actions">${linkHtml}${moveBtn}${memoBtn}</div>
     </div>
     ${memoSection}
   </div>`;
@@ -679,7 +696,76 @@ function cancelEditMemo(aKey,val){
     `<div class="memo-display">${escHtml(val)}</div><button class="memo-edit-btn" onclick="editMemo('${aKey}','${escAttr(val)}')">수정</button>`;
 }
 
-/* ── FETCH ── */
+/* ── RECLASSIFY ── */
+let _reclassifyCtx = null;
+
+function openReclassify(aKey, title, dateStr, currentSec){
+  _reclassifyCtx = {aKey, dateStr, currentSec};
+  document.getElementById('reclassify-article-title').textContent = title;
+
+  // 이동 가능한 섹션 목록 (현재 섹션 제외)
+  const isWeekly = dateStr.startsWith('w_');
+  const allSecs = isWeekly ? WEEKLY_SEC : {...DAILY_SEC, ...WEEKLY_SEC};
+  const btns = document.getElementById('reclassify-buttons');
+  btns.innerHTML = '';
+  Object.entries(allSecs).forEach(([key, s])=>{
+    if(key === currentSec) return;
+    const btn = document.createElement('button');
+    btn.style.cssText = `background:${s.bg};color:${s.color};border:1.5px solid ${s.color}33;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;text-align:left;`;
+    btn.textContent = s.label;
+    btn.onclick = () => doReclassify(key);
+    btns.appendChild(btn);
+  });
+  document.getElementById('reclassify-modal').classList.remove('hidden');
+}
+
+function closeReclassify(){
+  document.getElementById('reclassify-modal').classList.add('hidden');
+  _reclassifyCtx = null;
+}
+
+function doReclassify(targetSec){
+  if(!_reclassifyCtx) return;
+  const {aKey, dateStr, currentSec} = _reclassifyCtx;
+  const isWeekly = dateStr.startsWith('w_');
+  const wk = isWeekly ? dateStr.replace('w_','') : null;
+
+  if(isWeekly){
+    const wa = getWeeklyArchive();
+    const data = wa[wk];
+    if(!data) return;
+    // aKey 형식: w_WEEKKEY_SECKEY_IDX
+    const parts = aKey.split('_');
+    const idx = parseInt(parts[parts.length-1]);
+    const items = data.sections[currentSec]||[];
+    const article = items[idx];
+    if(!article) return;
+    // 원래 섹션에서 제거
+    data.sections[currentSec] = items.filter((_,i)=>i!==idx);
+    // 대상 섹션에 추가
+    if(!data.sections[targetSec]) data.sections[targetSec]=[];
+    data.sections[targetSec].push(article);
+    saveWeeklyArchive(wa);
+    renderWeekly(wa[wk]);
+  } else {
+    const a = getArchive();
+    const data = a[dateStr];
+    if(!data) return;
+    const parts = aKey.split('_');
+    const idx = parseInt(parts[parts.length-1]);
+    const items = data.sections[currentSec]||[];
+    const article = items[idx];
+    if(!article) return;
+    data.sections[currentSec] = items.filter((_,i)=>i!==idx);
+    if(!data.sections[targetSec]) data.sections[targetSec]=[];
+    data.sections[targetSec].push(article);
+    saveArchive(a);
+    // 현재 페이지가 today면 다시 렌더
+    if(currentPage==='today' && dateStr===todayKey) renderToday(data);
+    else if(currentPage==='date') showDateDetail(dateStr);
+  }
+  closeReclassify();
+}
 async function fetchNews(){
   const anthropicKey = localStorage.getItem('hr_api_key');
   if(!anthropicKey){ showToday('setup'); return; }
