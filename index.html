@@ -22,7 +22,7 @@
     .top-inner{padding:.9rem 1rem .75rem;min-height:62px;display:flex;align-items:center;}
     .top-row{display:flex;align-items:center;gap:.5rem;flex:1;padding-right:4px;}
     /* inline search — 검색 제목 옆 */
-    .inline-search{flex:1;margin-left:.5rem;min-width:0;overflow:hidden;}
+    .inline-search{flex:1;min-width:0;overflow:hidden;margin-left:.5rem;}
     .inline-search .search-bar{display:flex;align-items:center;background:rgba(255,255,255,.12);border-radius:10px;padding:6px 10px;gap:7px;}
     .inline-search .search-bar svg{width:14px;height:14px;stroke:rgba(255,255,255,.6);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
     .inline-search .search-bar input{background:none;border:none;color:white;font-size:14px;font-family:inherit;outline:none;flex:1;min-width:0;}
@@ -210,28 +210,28 @@
 <div class="top-bar" id="top-bar">
   <div class="top-inner">
     <div class="top-row">
-      <div id="title-area">
-        <div class="app-lbl">HR daily News</div>
-        <div class="top-title" id="top-title">오늘</div>
-      </div>
-      <!-- inline search bar (검색 탭 전용) -->
-      <div class="inline-search hidden" id="inline-search">
-        <div class="search-bar">
-          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="search" id="search-input" placeholder="" oninput="doSearch()" autocomplete="off">
-          <button class="search-clear" onclick="clearSearch()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      <!-- 좌측: 타이틀 또는 검색창 -->
+      <div style="flex:1;min-width:0;display:flex;align-items:center;">
+        <div id="title-area" style="flex-shrink:0;">
+          <div class="app-lbl">HR daily News</div>
+          <div class="top-title" id="top-title">오늘</div>
+        </div>
+        <div class="inline-search hidden" id="inline-search">
+          <div class="search-bar">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="search" id="search-input" placeholder="" oninput="doSearch()" autocomplete="off">
+            <button class="search-clear" onclick="clearSearch()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
         </div>
       </div>
-      <!-- 오른쪽 버튼 그룹 — flex 흐름 안에서 오른쪽 정렬 -->
-      <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;margin-left:auto;">
-        <!-- 설정·뉴스받기 — 어제 탭만 표시 -->
+      <!-- 우측: 버튼 그룹 — flex-shrink:0으로 절대 줄어들지 않음 -->
+      <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;margin-left:8px;">
         <div id="top-actions" class="hidden" style="display:flex;align-items:center;gap:5px;">
           <button class="icon-btn" onclick="openSettings()">
             <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
           <button class="refresh-btn" id="refresh-btn" onclick="fetchNews()">뉴스 받기</button>
         </div>
-        <!-- 새로고침 — 모든 탭 항상 표시 -->
         <button class="icon-btn sync-btn" id="sync-btn" onclick="syncRefresh()" title="타 기기 동기화">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
