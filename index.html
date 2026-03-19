@@ -22,7 +22,7 @@
     .top-inner{padding:.9rem 1rem .75rem;min-height:62px;display:flex;align-items:center;position:relative;}
     .top-row{display:flex;align-items:center;gap:.5rem;flex:1;padding-right:4px;}
     /* inline search — 검색 제목 옆 */
-    .inline-search{flex:1;margin-left:.5rem;margin-right:44px;}
+    .inline-search{flex:1;margin-left:.5rem;margin-right:52px;max-width:calc(100% - 80px);}
     .inline-search .search-bar{display:flex;align-items:center;background:rgba(255,255,255,.12);border-radius:10px;padding:6px 10px;gap:7px;}
     .inline-search .search-bar svg{width:14px;height:14px;stroke:rgba(255,255,255,.6);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
     .inline-search .search-bar input{background:none;border:none;color:white;font-size:14px;font-family:inherit;outline:none;flex:1;min-width:0;}
@@ -96,6 +96,18 @@
     .news-link{font-size:11px;color:#2563eb;text-decoration:none;white-space:nowrap;display:flex;align-items:center;gap:3px;}
     .news-link svg{width:11px;height:11px;stroke:#2563eb;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
     .memo-toggle{background:none;border:none;cursor:pointer;padding:2px 3px;display:flex;align-items:center;}
+    .memo-item{background:#fffbeb;border-radius:8px;padding:7px 9px;margin-bottom:5px;border:1px solid #fde68a;}
+    .memo-item-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+    .memo-item-time{font-size:10px;color:#92400e;opacity:.7;}
+    .memo-item-actions{display:flex;gap:4px;}
+    .memo-item-btn{background:none;border:none;font-size:10px;cursor:pointer;padding:1px 5px;border-radius:4px;font-family:inherit;}
+    .memo-item-edit{color:#d97706;}
+    .memo-item-del{color:#ef4444;}
+    .memo-item-text{font-size:12px;color:#78350f;line-height:1.5;}
+    .memo-add-btn{display:flex;align-items:center;gap:4px;background:none;border:1px dashed #d97706;color:#d97706;font-size:11px;padding:5px 9px;border-radius:8px;cursor:pointer;font-family:inherit;width:100%;justify-content:center;margin-top:3px;}
+    .memo-add-btn:active{opacity:.6;}
+    .memo-input-wrap{margin-top:5px;}
+    .memo-count{font-size:9px;color:#92400e;margin-left:3px;}
     .move-btn{background:none;border:none;cursor:pointer;padding:2px 3px;display:flex;align-items:center;}
     .del-btn{background:none;border:none;cursor:pointer;padding:2px 3px;display:flex;align-items:center;}
     .del-btn:hover svg{stroke:#ef4444;}
@@ -335,7 +347,7 @@
     <div style="width:44px;height:44px;background:#fef2f2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#ef4444" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14a2,2 0 0 1-2,2H8a2,2 0 0 1-2-2L5,6"/><path d="M10,11v6"/><path d="M14,11v6"/><path d="M9,6V4a1,1 0 0 1,1-1h4a1,1 0 0 1,1,1v2"/></svg>
     </div>
-    <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px;">기사를 삭제하시겠습니까?</div>
+    <div id="delete-modal-title" style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px;">기사를 삭제하시겠습니까?</div>
     <div id="delete-article-title" style="font-size:11px;color:var(--muted);margin-bottom:20px;line-height:1.5;background:#f9fafb;padding:8px 10px;border-radius:8px;text-align:left;"></div>
     <div style="display:flex;gap:8px;">
       <button onclick="closeDeleteConfirm()" style="flex:1;padding:11px;border-radius:12px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;">아니오</button>
@@ -739,27 +751,23 @@ function renderWeekly(data){
 function newsCardHTML(dateStr, secKey, idx, it, s){
   const aKey = articleKey(dateStr,secKey,idx);
   const memos = getMemos();
-  const memo = memos[aKey]||'';
-  const hasMemo = memo.length > 0;
+  const memoList = getMemoList(memos, aKey); // 배열 형태
+  const hasMemo = memoList.length > 0;
   const isHBR = false;
   const isWeekly = dateStr.startsWith('w_');
   const memoSvg = ICO.memo.replace('stroke-linecap="round" stroke-linejoin="round"',
     `stroke-linecap="round" stroke-linejoin="round" stroke="${hasMemo?'#f59e0b':'#9ca3af'}"`);
-  const memoBtn = `<button class="memo-toggle${hasMemo?' has-memo':''}" onclick="toggleMemo('${aKey}')">${memoSvg}</button>`;
+  const memoCount = hasMemo ? `<span class="memo-count">${memoList.length}</span>` : '';
+  const memoBtn = `<button class="memo-toggle${hasMemo?' has-memo':''}" onclick="toggleMemoArea('${aKey}')">${memoSvg}${memoCount}</button>`;
   const linkHtml = it.url ? `<a class="news-link" href="${it.url}" target="_blank">원문${ICO.link}</a>` : '';
-  // 재분류: JS 저장소에 데이터 저장 후 키만 onclick에 전달 (특수문자 안전)
   const rcKey = 'rc_'+aKey;
   _rcStore[rcKey] = {aKey, title: it.title||'', dateStr, secKey, isWeekly};
-  // 어제 탭(today page에서 렌더)은 이동 버튼 숨김
   const showMove = !(currentPage==='today' && !isWeekly && dateStr===todayKey);
-  // 삭제 버튼
   const delKey = 'del_'+aKey;
   _rcStore[delKey] = {aKey, dateStr, secKey, isWeekly};
   const deleteBtn = `<button class="del-btn" onclick="openDeleteConfirm('${delKey}')" title="기사 삭제"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#9ca3af" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14a2,2 0 0 1-2,2H8a2,2 0 0 1-2-2L5,6"/><path d="M10,11v6"/><path d="M14,11v6"/><path d="M9,6V4a1,1 0 0 1,1-1h4a1,1 0 0 1,1,1v2"/></svg></button>`;
   const moveBtn = showMove ? `<button class="move-btn" onclick="openReclassify('${rcKey}')" title="섹션 이동"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#9ca3af" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="17,1 21,5 17,9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7,23 3,19 7,15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></button>` : '';
-  const memoSection = hasMemo
-    ? `<div class="memo-area" id="memo-area-${aKey}"><div class="memo-display">${escHtml(memo)}</div><button class="memo-edit-btn" onclick="editMemo('${aKey}','${escAttr(memo)}')">수정</button></div>`
-    : `<div class="memo-area hidden" id="memo-area-${aKey}"><textarea class="memo-input" id="memo-input-${aKey}" rows="2" placeholder="메모를 남겨보세요"></textarea><div class="memo-actions"><button class="memo-cancel" onclick="closeMemo('${aKey}')">취소</button><button class="memo-save" onclick="saveMemo('${aKey}')">저장</button></div></div>`;
+  const memoSection = `<div class="memo-area${hasMemo?'':' hidden'}" id="memo-area-${aKey}">${renderMemoList(aKey, memoList)}</div>`;
   return `<div class="news-card${isHBR?' hbr':''}" id="card-${aKey}">
     <div class="news-top">
       <span class="news-dot" style="background:${s.color};"></span>
@@ -774,32 +782,151 @@ function newsCardHTML(dateStr, secKey, idx, it, s){
   </div>`;
 }
 
-/* ── MEMO ── */
-function toggleMemo(aKey){
-  const area = document.getElementById('memo-area-'+aKey);
-  if(getMemos()[aKey]) return;
-  area.classList.toggle('hidden');
-  if(!area.classList.contains('hidden')) document.getElementById('memo-input-'+aKey)?.focus();
+/* ── MEMO (다중 메모, 최대 5개) ── */
+// 기존 string → 배열 변환 호환
+function getMemoList(memos, aKey){
+  const v = memos[aKey];
+  if(!v) return [];
+  if(Array.isArray(v)) return v;
+  // 구버전 string → 배열로 마이그레이션
+  return [{text: v, updatedAt: new Date().toISOString()}];
 }
-function closeMemo(aKey){ document.getElementById('memo-area-'+aKey).classList.add('hidden'); }
-function saveMemo(aKey){
+
+function fmtMemoTime(iso){
+  try{
+    const d = new Date(iso);
+    return d.toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  }catch(e){ return ''; }
+}
+
+function renderMemoList(aKey, list){
+  let html = list.map((m,i)=>`
+    <div class="memo-item" id="memo-item-${aKey}-${i}">
+      <div class="memo-item-header">
+        <span class="memo-item-time">${fmtMemoTime(m.updatedAt)}</span>
+        <div class="memo-item-actions">
+          <button class="memo-item-btn memo-item-edit" onclick="editMemoItem('${aKey}',${i})">수정</button>
+          <button class="memo-item-btn memo-item-del" onclick="deleteMemoItem('${aKey}',${i})">삭제</button>
+        </div>
+      </div>
+      <div class="memo-item-text" id="memo-text-${aKey}-${i}">${escHtml(m.text)}</div>
+    </div>`).join('');
+  html += `<button class="memo-add-btn" onclick="showMemoInput('${aKey}')">+ 메모 추가</button>`;
+  html += `<div class="memo-input-wrap hidden" id="memo-input-wrap-${aKey}">
+    <textarea class="memo-input" id="memo-input-${aKey}" rows="2" placeholder="메모를 남겨보세요"></textarea>
+    <div class="memo-actions">
+      <button class="memo-cancel" onclick="hideMemoInput('${aKey}')">취소</button>
+      <button class="memo-save" onclick="addMemoItem('${aKey}')">저장</button>
+    </div>
+  </div>`;
+  return html;
+}
+
+function toggleMemoArea(aKey){
+  const area = document.getElementById('memo-area-'+aKey);
+  area.classList.toggle('hidden');
+}
+
+function showMemoInput(aKey){
+  const wrap = document.getElementById('memo-input-wrap-'+aKey);
+  if(wrap){ wrap.classList.remove('hidden'); document.getElementById('memo-input-'+aKey)?.focus(); }
+}
+function hideMemoInput(aKey){
+  const wrap = document.getElementById('memo-input-wrap-'+aKey);
+  if(wrap){ wrap.classList.add('hidden'); const inp=document.getElementById('memo-input-'+aKey); if(inp) inp.value=''; }
+}
+
+function addMemoItem(aKey){
   const inp = document.getElementById('memo-input-'+aKey); if(!inp) return;
   const val = inp.value.trim(); if(!val) return;
-  const memos = getMemos(); memos[aKey]=val; saveMemos(memos);
-  document.getElementById('memo-area-'+aKey).innerHTML =
-    `<div class="memo-display">${escHtml(val)}</div><button class="memo-edit-btn" onclick="editMemo('${aKey}','${escAttr(val)}')">수정</button>`;
-  const btn = document.querySelector(`#card-${aKey} .memo-toggle`);
-  if(btn){btn.classList.add('has-memo');btn.querySelector('svg').style.stroke='#f59e0b';}
+  const memos = getMemos();
+  let list = getMemoList(memos, aKey);
+  list.push({text: val, updatedAt: new Date().toISOString()});
+  memos[aKey] = list; saveMemos(memos);
+  _refreshMemoArea(aKey, list);
   autoSyncToGist();
 }
-function editMemo(aKey,cur){
-  document.getElementById('memo-area-'+aKey).innerHTML =
-    `<textarea class="memo-input" id="memo-input-${aKey}" rows="2">${escHtml(cur)}</textarea><div class="memo-actions"><button class="memo-cancel" onclick="cancelEditMemo('${aKey}','${escAttr(cur)}')">취소</button><button class="memo-save" onclick="saveMemo('${aKey}')">저장</button></div>`;
-  document.getElementById('memo-input-'+aKey).focus();
+
+function editMemoItem(aKey, idx){
+  const memos = getMemos();
+  const list = getMemoList(memos, aKey);
+  const item = list[idx]; if(!item) return;
+  const itemEl = document.getElementById(`memo-item-${aKey}-${idx}`);
+  if(!itemEl) return;
+  itemEl.innerHTML = `
+    <textarea class="memo-input" id="memo-edit-input-${aKey}-${idx}" rows="2">${escHtml(item.text)}</textarea>
+    <div class="memo-actions">
+      <button class="memo-cancel" onclick="_cancelEditMemoItem('${aKey}',${idx})">취소</button>
+      <button class="memo-save" onclick="_saveEditMemoItem('${aKey}',${idx})">저장</button>
+    </div>`;
+  document.getElementById(`memo-edit-input-${aKey}-${idx}`)?.focus();
 }
-function cancelEditMemo(aKey,val){
-  document.getElementById('memo-area-'+aKey).innerHTML =
-    `<div class="memo-display">${escHtml(val)}</div><button class="memo-edit-btn" onclick="editMemo('${aKey}','${escAttr(val)}')">수정</button>`;
+
+function _cancelEditMemoItem(aKey, idx){
+  const memos = getMemos();
+  const list = getMemoList(memos, aKey);
+  _refreshMemoArea(aKey, list);
+}
+
+function _saveEditMemoItem(aKey, idx){
+  const inp = document.getElementById(`memo-edit-input-${aKey}-${idx}`); if(!inp) return;
+  const val = inp.value.trim(); if(!val) return;
+  const memos = getMemos();
+  const list = getMemoList(memos, aKey);
+  list[idx] = {text: val, updatedAt: new Date().toISOString()};
+  memos[aKey] = list; saveMemos(memos);
+  _refreshMemoArea(aKey, list);
+  autoSyncToGist();
+}
+
+function deleteMemoItem(aKey, idx){
+  // 기사 삭제와 동일한 확인 팝업
+  _deleteMemoCtx = {aKey, idx};
+  const memos = getMemos();
+  const list = getMemoList(memos, aKey);
+  const text = list[idx]?.text || '';
+  document.getElementById('delete-article-title').textContent = `메모: "${text.slice(0,60)}${text.length>60?'…':''}"`;
+  document.getElementById('delete-modal-title').textContent = '메모를 삭제하시겠습니까?';
+  document.getElementById('delete-modal').classList.remove('hidden');
+}
+
+let _deleteMemoCtx = null;
+
+function _doDeleteMemoItem(){
+  if(!_deleteMemoCtx) return;
+  const {aKey, idx} = _deleteMemoCtx;
+  const memos = getMemos();
+  const list = getMemoList(memos, aKey);
+  list.splice(idx, 1);
+  if(list.length === 0){ delete memos[aKey]; } else { memos[aKey] = list; }
+  saveMemos(memos);
+  _refreshMemoArea(aKey, list);
+  const btn = document.querySelector(`#card-${aKey} .memo-toggle`);
+  if(btn){
+    const hasMemo = list.length > 0;
+    btn.classList.toggle('has-memo', hasMemo);
+    btn.querySelector('svg').style.stroke = hasMemo ? '#f59e0b' : '#9ca3af';
+    const cnt = btn.querySelector('.memo-count');
+    if(cnt) cnt.textContent = hasMemo ? list.length : '';
+  }
+  autoSyncToGist();
+  _deleteMemoCtx = null;
+}
+
+function _refreshMemoArea(aKey, list){
+  const area = document.getElementById('memo-area-'+aKey);
+  if(!area) return;
+  area.innerHTML = renderMemoList(aKey, list);
+  area.classList.remove('hidden');
+  // 아이콘 업데이트
+  const btn = document.querySelector(`#card-${aKey} .memo-toggle`);
+  if(btn){
+    const hasMemo = list.length > 0;
+    btn.classList.toggle('has-memo', hasMemo);
+    btn.querySelector('svg').style.stroke = hasMemo ? '#f59e0b' : '#9ca3af';
+    const cnt = btn.querySelector('.memo-count');
+    if(cnt) cnt.textContent = hasMemo ? list.length : '';
+  }
 }
 
 /* ── RECLASSIFY ── */
@@ -861,9 +988,23 @@ function openDeleteConfirm(storeKey){
 function closeDeleteConfirm(){
   document.getElementById('delete-modal').classList.add('hidden');
   _deleteCtx = null;
+  _deleteMemoCtx = null;
+  document.getElementById('delete-modal-title').textContent = '기사를 삭제하시겠습니까?';
 }
 
 function confirmDelete(){
+  // 메모 삭제 컨텍스트가 있으면 메모 삭제
+  if(_deleteMemoCtx){
+    _doDeleteMemoItem();
+    closeDeleteConfirm();
+    // 타이틀 원래대로 복원
+    document.getElementById('delete-modal-title').textContent = '기사를 삭제하시겠습니까?';
+    return;
+  }
+  // 기사 삭제 (기존 로직)
+  _doDeleteArticle();
+}
+function _doDeleteArticle(){
   if(!_deleteCtx) return;
   const {aKey, dateStr, secKey, isWeekly} = _deleteCtx;
 
@@ -1547,13 +1688,13 @@ async function syncRefresh(){
   btn.disabled = true;
   try{
     await syncFromGist();
-    // 현재 탭 뷰 갱신
+    // 모든 탭 데이터 갱신 (검색 탭은 재렌더 없음)
     const arch = getArchive();
-    if(arch[todayKey] && currentPage==='today') renderToday(arch[todayKey]);
     const wa = getWeeklyArchive();
-    if(wa[weekKey] && currentPage==='weekly') renderWeekly(wa[weekKey]);
-    if(currentPage==='date') renderDateList();
-    if(currentPage==='topic') renderTopicList();
+    if(arch[todayKey]) renderToday(arch[todayKey]);
+    if(wa[weekKey]) renderWeekly(wa[weekKey]);
+    renderDateList();
+    renderTopicList();
   }finally{
     btn.classList.remove('spinning');
     btn.disabled = false;
