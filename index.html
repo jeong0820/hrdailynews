@@ -1506,40 +1506,63 @@ function doSearch(){
   const hint = `<div class="search-hint"><div class="search-hint-icon">${ICO.search}</div><div class="search-hint-text">검색어를 입력하세요</div><div class="search-hint-sub">기사 제목, 요약, 메모를 통합 검색합니다</div></div>`;
   if(!q){wrap.innerHTML=hint;return;}
   const memos = getMemos();
+  const ql = q.toLowerCase();
   const results = [];
+
+  function searchArticles(dateStr, key, items, isWeekly, wk){
+    items.forEach((it,idx)=>{
+      const aKey = articleKey(dateStr, key, idx);
+      const memoList = getMemoList(memos, aKey);
+      // 모든 메모 텍스트를 합쳐서 검색
+      const memoText = memoList.map(m=>m.text).join(' ');
+      const searchTarget = [it.title, it.summary, it.source, memoText].join(' ').toLowerCase();
+      if(searchTarget.includes(ql)){
+        results.push({dateStr, key, idx, it, memoList, isWeekly, wk});
+      }
+    });
+  }
+
   // daily archive
   Object.keys(getArchive()).sort((a,b)=>b.localeCompare(a)).forEach(dateStr=>{
     const data = getArchive()[dateStr];
     DAILY_ORDER.forEach(key=>{
-      ((data.sections&&data.sections[key])||[]).forEach((it,idx)=>{
-        const aKey=articleKey(dateStr,key,idx), memo=memos[aKey]||'';
-        if([it.title,it.summary,it.source,memo].join(' ').toLowerCase().includes(q.toLowerCase()))
-          results.push({dateStr,key,idx,it,memo,isWeekly:false});
-      });
+      searchArticles(dateStr, key, (data.sections&&data.sections[key])||[], false, null);
     });
   });
   // weekly archive
   Object.keys(getWeeklyArchive()).sort((a,b)=>b.localeCompare(a)).forEach(wk=>{
     const data = getWeeklyArchive()[wk];
     WEEKLY_ORDER.forEach(key=>{
-      ((data.sections&&data.sections[key])||[]).forEach((it,idx)=>{
-        const aKey=articleKey('w_'+wk,key,idx), memo=memos[aKey]||'';
-        if([it.title,it.summary,it.source,memo].join(' ').toLowerCase().includes(q.toLowerCase()))
-          results.push({dateStr:'w_'+wk,key,idx,it,memo,isWeekly:true,wk});
-      });
+      searchArticles('w_'+wk, key, (data.sections&&data.sections[key])||[], true, wk);
     });
   });
+
   if(!results.length){wrap.innerHTML=`<div class="search-hint"><div class="search-hint-icon">${ICO.search}</div><div class="search-hint-text">검색 결과가 없어요</div><div class="search-hint-sub">"${escHtml(q)}"에 해당하는 기사가 없습니다</div></div>`;return;}
+
   const hl = txt=>escHtml(txt).replace(new RegExp(escRegex(q),'gi'),m=>`<span class="highlight">${m}</span>`);
   const grouped = {};
-  results.forEach(r=>{ const lbl=r.isWeekly?(getWeeklyArchive()[r.wk]?.weekLabel||r.wk):r.dateStr; if(!grouped[lbl])grouped[lbl]=[]; grouped[lbl].push(r); });
+  results.forEach(r=>{
+    const lbl = r.isWeekly ? (getWeeklyArchive()[r.wk]?.weekLabel||r.wk) : r.dateStr;
+    if(!grouped[lbl]) grouped[lbl]=[];
+    grouped[lbl].push(r);
+  });
+
   wrap.innerHTML = `<div class="search-count">검색 결과 ${results.length}건</div>` +
     Object.keys(grouped).map(lbl=>{
       return `<div class="search-date-label">${lbl}</div>` +
-        grouped[lbl].map(({dateStr,key,it,memo,isWeekly})=>{
-          const s = isWeekly ? WEEKLY_SEC[key] : DAILY_SEC[key];
-          const memoHtml = memo ? `<div class="memo-display" style="margin-top:7px;">${hl(memo)}</div>` : '';
-          return `<div class="news-card${false?' hbr':''}">
+        grouped[lbl].map(({dateStr,key,it,memoList,isWeekly})=>{
+          const s = (isWeekly ? WEEKLY_SEC : DAILY_SEC)[key] || WEEKLY_SEC[key] || DAILY_SEC[key];
+          if(!s) return '';
+          // 메모 목록 렌더 — 키워드 매칭된 메모는 하이라이트
+          const memoHtml = memoList.length ? `<div style="margin-top:7px;display:flex;flex-direction:column;gap:4px;">` +
+            memoList.map(m=>{
+              const isMatch = m.text.toLowerCase().includes(ql);
+              return `<div class="memo-item" style="${isMatch?'border-color:#f59e0b;':''}">`+
+                `<div class="memo-item-header"><span class="memo-item-time">${fmtMemoTime(m.updatedAt)}</span></div>`+
+                `<div class="memo-item-text">${hl(m.text)}</div>`+
+                `</div>`;
+            }).join('')+`</div>` : '';
+          return `<div class="news-card">
             <div class="news-top"><span class="news-dot" style="background:${s.color};"></span><span class="news-title">${hl(it.title||'')}</span></div>
             <p class="news-summary">${hl(it.summary||'')}</p>
             <div class="news-footer"><span class="news-source">${escHtml(it.source||'')}</span>
