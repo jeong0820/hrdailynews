@@ -1558,7 +1558,21 @@ function renderDateList(){
         return `${d.getMonth()+1}월 ${Math.ceil(d.getDate()/7)}주차`;
       })();
       const total = WEEKLY_ORDER.reduce((s,k)=>s+((item.sections&&item.sections[k])||[]).length,0);
-      const mc = Object.keys(memos).filter(k=>k.startsWith('w_'+wk+'_')).reduce((s,k)=>s+getMemoList(memos,k).length, 0);
+      // 주간 기사 URL 수집 후 URL 기준 중복 제거 메모 합산
+      const wkUrlSeen = new Set();
+      let mc = 0;
+      WEEKLY_ORDER.forEach(secKey=>{
+        ((item.sections&&item.sections[secKey])||[]).forEach((art, idx)=>{
+          const aKey = articleKey('w_'+wk, secKey, idx);
+          const memoItems = getMemoList(memos, aKey);
+          if(!memoItems.length) return;
+          const dedupeKey = art.url || aKey;
+          if(!wkUrlSeen.has(dedupeKey)){
+            wkUrlSeen.add(dedupeKey);
+            mc += memoItems.length;
+          }
+        });
+      });
       return `<div class="archive-date-card" onclick="showWeeklyDetail('${wk}')">
         <div><div class="archive-date">${label}</div>
         <div class="archive-meta">기사 ${total}건${mc>0?' · <span class="memo-badge">메모 '+mc+'개</span>':''}</div></div>
