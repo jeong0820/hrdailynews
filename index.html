@@ -96,6 +96,8 @@
     .news-link{font-size:11px;color:#2563eb;text-decoration:none;white-space:nowrap;display:flex;align-items:center;gap:3px;}
     .news-link svg{width:11px;height:11px;stroke:#2563eb;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
     .memo-toggle{background:none;border:none;cursor:pointer;padding:2px 3px;display:flex;align-items:center;}
+    .memo-area{display:block;}
+    .memo-area.hidden{display:none!important;}
     .memo-item{background:#fffbeb;border-radius:8px;padding:7px 9px;margin-bottom:5px;border:1px solid #fde68a;}
     .memo-item-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
     .memo-item-time{font-size:10px;color:#92400e;opacity:.7;}
@@ -626,12 +628,17 @@ const now = new Date();
 const todayKey = now.toISOString().slice(0,10);
 
 /* 이번 주 월요일 날짜를 weekKey로 사용 */
+// 로컬 날짜 → 'YYYY-MM-DD' (UTC 오프셋 문제 없음)
+function toLocalDateStr(d){
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
 function getWeekKey(){
   const d = new Date(now);
-  const day = d.getDay(); // 0=일, 1=월
+  const day = d.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   d.setDate(d.getDate() + diff);
-  return d.toISOString().slice(0,10);
+  return toLocalDateStr(d);
 }
 const weekKey = getWeekKey();
 const isMonday = now.getDay() === 1;
@@ -756,22 +763,7 @@ function newsCardHTML(dateStr, secKey, idx, it, s){
   const isWeeklyCard = dateStr.startsWith('w_');
   if(isWeeklyCard && it.url) it = getCanonicalArticle(it);
   const memos = getMemos();
-  // 동일 URL 기사의 메모를 모두 합쳐서 표시
-  const urlSameKeys = it.url ? findSameUrlKeys(it.url) : [];
-  const mergedMemoList = urlSameKeys.length > 1
-    ? (()=>{
-        const m = getMemos();
-        // 모든 동일 URL 기사의 메모 중 가장 많은 것 사용
-        let best = getMemoList(m, aKey);
-        urlSameKeys.forEach(k=>{ const l=getMemoList(m,k); if(l.length>best.length) best=l; });
-        // 현재 키에도 동기화
-        if(best.length > 0 && JSON.stringify(best) !== JSON.stringify(getMemoList(m,aKey))){
-          m[aKey]=best; saveMemos(m);
-        }
-        return best;
-      })()
-    : getMemoList(memos, aKey);
-  const memoList = mergedMemoList; // 배열 형태
+  const memoList = getMemoList(memos, aKey);
   const hasMemo = memoList.length > 0;
   const isHBR = false;
   const isWeekly = dateStr.startsWith('w_');
@@ -870,20 +862,9 @@ function syncMemoByUrl(sourceAKey, memoList){
   sameKeys.forEach(k=>{
     if(k !== sourceAKey){
       memos[k] = memoList;
-      // DOM에 해당 카드가 렌더되어 있으면 즉시 갱신
-      const area = document.getElementById('memo-area-'+k);
-      if(area){
-        area.innerHTML = renderMemoList(k, memoList);
-        area.classList.remove('hidden');
-        const btn = document.querySelector(`#card-${k} .memo-toggle`);
-        if(btn){
-          const hasMemo = memoList.length > 0;
-          btn.classList.toggle('has-memo', hasMemo);
-          btn.querySelector('svg').style.stroke = hasMemo ? '#f59e0b' : '#9ca3af';
-          const cntEl = btn.querySelector('.memo-count');
-          if(cntEl) cntEl.textContent = hasMemo ? memoList.length : '';
-        }
-      }
+      const a = document.getElementById('memo-area-'+k);
+      if(a){ a.innerHTML = renderMemoList(k, memoList); a.classList.remove('hidden'); }
+      _updateMemoIcon('card-'+k, memoList);
     }
   });
   saveMemos(memos);
@@ -952,6 +933,7 @@ function addMemoItem(aKey){
   memos[aKey] = list; saveMemos(memos);
   syncMemoByUrl(aKey, list);
   _refreshMemoArea(aKey, list);
+  _syncMemoToOtherTabs(aKey, list);
   autoSyncToGist();
 }
 
@@ -1016,45 +998,60 @@ function _doDeleteMemoItem(){
     if(url2){ const sameKeys2 = findSameUrlKeys(url2); const m2=getMemos(); sameKeys2.forEach(k=>{if(k!==aKey) delete m2[k]}); saveMemos(m2); }
   }
   _refreshMemoArea(aKey, list);
-  const btn = document.querySelector(`#card-${aKey} .memo-toggle`);
-  if(btn){
-    const hasMemo = list.length > 0;
-    btn.classList.toggle('has-memo', hasMemo);
-    btn.querySelector('svg').style.stroke = hasMemo ? '#f59e0b' : '#9ca3af';
-    const cnt = btn.querySelector('.memo-count');
-    if(cnt) cnt.textContent = hasMemo ? list.length : '';
-  }
+  _updateMemoIcon('card-'+aKey, list);
   autoSyncToGist();
   _deleteMemoCtx = null;
 }
 
-function _refreshMemoArea(aKey, list){
-  // 동일 URL 기사의 모든 카드 메모 영역 갱신
-  const url = getArticleUrl(aKey);
-  const targetKeys = url ? findSameUrlKeys(url) : [aKey];
-  const allKeys = new Set([aKey, ...targetKeys]);
+function _updateMemoIcon(cardId, list){
+  // querySelector 대신 getElementById + 자식 탐색으로 안전하게 업데이트
+  const card = document.getElementById(cardId);
+  if(!card) return;
+  const btn = card.querySelector('.memo-toggle');
+  if(!btn) return;
+  const hasMemo = list.length > 0;
+  btn.classList.toggle('has-memo', hasMemo);
+  const svg = btn.querySelector('svg');
+  if(svg) svg.style.stroke = hasMemo ? '#f59e0b' : '#9ca3af';
+  // 메모 수 표시
+  let cntEl = btn.querySelector('.memo-count');
+  if(hasMemo){
+    if(!cntEl){ cntEl = document.createElement('span'); cntEl.className='memo-count'; btn.appendChild(cntEl); }
+    cntEl.textContent = list.length;
+  } else {
+    if(cntEl) cntEl.remove();
+  }
+}
 
-  allKeys.forEach(k => {
-    const area = document.getElementById('memo-area-'+k);
-    if(area){
-      area.innerHTML = renderMemoList(k, list);
-      area.classList.remove('hidden');
-    }
-    const btn = document.querySelector(`#card-${k} .memo-toggle`);
-    if(btn){
-      const hasMemo = list.length > 0;
-      btn.classList.toggle('has-memo', hasMemo);
-      btn.querySelector('svg').style.stroke = hasMemo ? '#f59e0b' : '#9ca3af';
-      const cntEl = btn.querySelector('.memo-count');
-      if(cntEl) cntEl.textContent = hasMemo ? list.length : '';
-      else if(hasMemo){
-        const span = document.createElement('span');
-        span.className = 'memo-count';
-        span.textContent = list.length;
-        btn.appendChild(span);
-      }
-    }
-  });
+function _refreshMemoArea(aKey, list){
+  // 1) 현재 탭의 해당 카드 메모 영역 갱신
+  const area = document.getElementById('memo-area-'+aKey);
+  if(area){
+    area.innerHTML = renderMemoList(aKey, list);
+    area.classList.remove('hidden');
+  }
+  _updateMemoIcon('card-'+aKey, list);
+
+  // 2) 동일 URL 다른 키 카드도 갱신
+  const url = getArticleUrl(aKey);
+  if(url){
+    findSameUrlKeys(url).forEach(k=>{
+      if(k === aKey) return;
+      const a2 = document.getElementById('memo-area-'+k);
+      if(a2){ a2.innerHTML = renderMemoList(k, list); a2.classList.remove('hidden'); }
+      _updateMemoIcon('card-'+k, list);
+    });
+  }
+}
+
+// 메모 변경 후 다른 탭에 렌더된 같은 기사 카드도 업데이트
+function _syncMemoToOtherTabs(aKey, list){
+  // 날짜별/주제별 탭이 현재 열려있지 않아도 다음에 열릴 때 최신 데이터 반영됨
+  // 현재 렌더된 DOM에서 같은 aKey를 가진 다른 카드 영역만 업데이트
+  // (이미 _refreshMemoArea에서 동일 URL 처리하므로 탭 구분 없이 DOM 전체 스캔)
+  const area = document.getElementById('memo-area-'+aKey);
+  // 어제탭/주간탭이 이미 렌더된 경우 즉시 반영
+  // — 날짜별/주제별 detail이 열려있으면 현재 detail 내 카드도 이미 _refreshMemoArea에서 처리됨
 }
 
 /* ── RECLASSIFY ── */
@@ -1465,11 +1462,13 @@ function jumpToWeekly(btn,sec){
 /* ── DATE ARCHIVE ── */
 // 날짜(YYYY-MM-DD) → 해당 주 월요일 날짜 반환
 function getWeekStart(dateStr){
-  const d = new Date(dateStr);
+  // YYYY-MM-DD를 로컬 날짜로 파싱
+  const [y,m,dd] = dateStr.slice(0,10).split('-').map(Number);
+  const d = new Date(y, m-1, dd);
   const day = d.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   d.setDate(d.getDate() + diff);
-  return d.toISOString().slice(0,10);
+  return toLocalDateStr(d);
 }
 
 function renderDateList(){
@@ -1599,12 +1598,15 @@ function showTopicDetail(secKey, type){
       const label = getWeeklyArchive()[wk].weekLabel||wk;
       html += `<div style="font-size:11px;color:var(--muted);margin:10px 0 5px;font-weight:500;">${label}</div>`;
       html += items.map((it,idx)=>newsCardHTML('w_'+wk,secKey,idx,it,s)).join('');
-      // 일간 기사 추가 (어제탭 고용정책)
-      dailyItems.forEach(({it,idx,dateStr})=>{
-        const label2 = new Date(dateStr).toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'});
-        html += `<div style="font-size:10px;color:var(--muted);margin:6px 0 3px;padding-left:2px;">${label2} — 어제 탭</div>`;
-        html += newsCardHTML(dateStr, secKey, idx, it, s);
-      });
+      // 일간 기사 추가 — 중복 URL 제거 (주간에 이미 있는 URL 제외)
+      const weeklyUrlSet = new Set(items.map(it=>it.url).filter(Boolean));
+      dailyItems
+        .filter(({it})=> !it.url || !weeklyUrlSet.has(it.url))
+        .forEach(({it,idx,dateStr})=>{
+          const label2 = new Date(dateStr).toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'});
+          html += `<div style="font-size:10px;color:var(--muted);margin:6px 0 3px;padding-left:2px;">${label2}</div>`;
+          html += newsCardHTML(dateStr, secKey, idx, it, s);
+        });
     });
     // 주간 아카이브 없는 주의 일간 기사 (고용정책만)
     if(secKey === '고용정책'){
@@ -1703,17 +1705,30 @@ function showMergedWeekDetail(wk){
       <span class="section-count">${totalCount}건</span>
     </div>`;
 
+    // 중복 URL 제거 — 주간 기사에 이미 있는 URL은 일간에서 제외
+    const weeklyUrls = new Set(weeklyItems.map(it=>it.url).filter(Boolean));
+    const dedupedDailyItems = dailyItems.filter(({it})=> !it.url || !weeklyUrls.has(it.url));
+    const actualTotal = weeklyItems.length + dedupedDailyItems.length;
+
+    // 건수 업데이트
+    const secHeader = html.slice(html.lastIndexOf('<div class="section-block">'));
+    html = html.slice(0, html.lastIndexOf('<div class="section-block">'));
+    html += `<div class="section-block"><div class="section-header">
+      <span class="section-badge" style="background:${s.bg};color:${s.color};">${s.label}</span>
+      <span class="section-count">${actualTotal}건</span>
+    </div>`;
+
     if(weeklyItems.length){
       html += weeklyItems.map((it,idx)=>newsCardHTML('w_'+wk,key,idx,it,s)).join('');
     }
-    // 일간 기사 (날짜 소제목 포함)
-    dailyItems.forEach(({it,idx,dateStr})=>{
+    // 중복 제거된 일간 기사
+    dedupedDailyItems.forEach(({it,idx,dateStr})=>{
       const dlabel = new Date(dateStr).toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'});
       html += `<div style="font-size:10px;color:var(--muted);margin:6px 0 3px;padding-left:2px;">${dlabel}</div>`;
       html += newsCardHTML(dateStr, key, idx, it, s);
     });
 
-    if(totalCount === 0){
+    if(actualTotal === 0){
       html += `<div class="empty-sec">이번 주 관련 뉴스가 없습니다</div>`;
     }
     html += `</div>`;
