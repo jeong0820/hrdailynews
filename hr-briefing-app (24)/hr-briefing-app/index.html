@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>HR daily News</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f1623">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="HR daily News">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html{touch-action:manipulation;}
+    :root{--navy:#0f1623;--bg:#f2f1ed;--text:#111827;--muted:#6b7280;--border:rgba(0,0,0,0.07);}
+    html,body{height:100%;}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Pretendard','Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;min-height:100dvh;}
+
+    .top-bar{background:var(--navy);padding-top:env(safe-area-inset-top,0);flex-shrink:0;z-index:20;position:sticky;top:0;}
+    .top-inner{padding:.9rem 1rem .75rem;min-height:62px;display:flex;align-items:center;}
+    .top-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex:1;}
+    /* inline search — 검색 제목 옆 */
+    .inline-search{flex:1;margin-left:.5rem;}
+    .inline-search .search-bar{display:flex;align-items:center;background:rgba(255,255,255,.12);border-radius:10px;padding:6px 10px;gap:7px;}
+    .inline-search .search-bar svg{width:14px;height:14px;stroke:rgba(255,255,255,.6);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
+    .inline-search .search-bar input{background:none;border:none;color:white;font-size:14px;font-family:inherit;outline:none;flex:1;min-width:0;}
+    .inline-search .search-bar input::placeholder{color:rgba(255,255,255,.35);}
+    .inline-search .search-clear{background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;padding:0;display:flex;align-items:center;}
+    .inline-search .search-clear svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;}
+    .app-lbl{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:2px;white-space:nowrap;}
+    .top-title{font-size:18px;font-weight:600;color:white;letter-spacing:-.3px;white-space:nowrap;}
+    #title-area{flex-shrink:0;}
+    .top-actions{display:flex;gap:5px;align-items:center;}
+    .icon-btn{background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.7);width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;}
+    .icon-btn:active{opacity:.6;}
+    .icon-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+    .refresh-btn{background:rgba(255,255,255,.15);border:none;color:white;padding:6px 13px;border-radius:18px;font-size:12px;cursor:pointer;white-space:nowrap;font-family:inherit;font-weight:500;}
+    .refresh-btn:active{opacity:.6;}
+    .refresh-btn:disabled{opacity:.35;cursor:not-allowed;}
+    .search-bar{display:flex;align-items:center;background:rgba(255,255,255,.12);border-radius:12px;padding:8px 12px;gap:8px;}
+    .search-bar svg{width:14px;height:14px;stroke:rgba(255,255,255,.4);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
+    .search-bar input{background:none;border:none;color:white;font-size:14px;font-family:inherit;outline:none;flex:1;min-width:0;}
+    .search-bar input::placeholder{color:rgba(255,255,255,.4);}
+    .search-clear{background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;padding:0;display:flex;align-items:center;}
+    .search-clear svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;}
+
+    .page{flex:1;overflow-y:auto;padding:1rem 1rem calc(1rem + 60px + env(safe-area-inset-bottom,0px));}
+    .page.hidden{display:none!important;}
+
+    /* weekly badge on nav */
+    .nav-badge{position:absolute;top:6px;right:12px;width:7px;height:7px;background:#be123c;border-radius:50%;border:1.5px solid white;}
+
+    .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:white;border-top:.5px solid var(--border);display:flex;z-index:20;padding-bottom:env(safe-area-inset-bottom,0px);}
+    .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:.6rem 0;border:none;background:none;cursor:pointer;font-family:inherit;color:#9ca3af;position:relative;}
+    .nav-btn.active{color:var(--navy);}
+    .nav-btn svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+    .nav-label{font-size:10px;}
+
+    /* setup */
+    .setup-card{background:white;border-radius:16px;padding:1.25rem;border:1px solid var(--border);}
+    .setup-title{font-size:15px;font-weight:600;margin-bottom:7px;}
+    .setup-desc{font-size:12px;color:var(--muted);line-height:1.65;margin-bottom:12px;}
+    .setup-link{color:#2563eb;text-decoration:none;}
+    .setup-steps{list-style:none;margin-bottom:.875rem;}
+    .setup-steps li{font-size:12px;color:var(--muted);padding:5px 0;border-bottom:1px solid var(--border);display:flex;gap:7px;align-items:flex-start;line-height:1.5;}
+    .setup-steps li:last-child{border-bottom:none;}
+    .step-num{background:#f3f4f6;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:600;color:#374151;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+    .field-label{font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:500;}
+    .api-input{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:'SF Mono','Courier New',monospace;margin-bottom:9px;background:#fafafa;color:var(--text);}
+    .api-input:focus{outline:2px solid #2563eb;border-color:transparent;background:white;}
+    .save-btn{width:100%;background:var(--navy);color:white;border:none;padding:11px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;}
+    .save-btn:active{opacity:.8;}
+
+    /* news cards */
+    .section-block{margin-bottom:1.1rem;}
+    .section-header{display:flex;align-items:center;gap:7px;margin-bottom:.5rem;}
+    .section-badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:18px;}
+    .section-count{font-size:11px;color:var(--muted);}
+    .section-tag{font-size:10px;color:var(--muted);margin-left:auto;background:#f3f4f6;padding:2px 7px;border-radius:8px;}
+    .news-card{background:white;border-radius:13px;padding:.875rem 1rem;margin-bottom:6px;border:1px solid var(--border);}
+    .news-card.hbr{border-left:3px solid #be123c;}
+    .news-top{display:flex;align-items:flex-start;gap:8px;margin-bottom:5px;}
+    .news-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:6px;}
+    .news-title{font-size:13px;font-weight:600;line-height:1.45;color:var(--text);}
+    .news-title.en{font-style:italic;}
+    .news-summary{font-size:12px;color:var(--muted);line-height:1.65;margin-bottom:7px;padding-left:14px;}
+    .news-footer{display:flex;align-items:center;justify-content:space-between;padding-left:14px;gap:6px;}
+    .news-source{font-size:10px;color:#9ca3af;flex-shrink:0;}
+    .news-source.hbr-src{color:#be123c;font-weight:600;}
+    .footer-actions{display:flex;align-items:center;gap:8px;}
+    .news-link{font-size:11px;color:#2563eb;text-decoration:none;white-space:nowrap;display:flex;align-items:center;gap:3px;}
+    .news-link svg{width:11px;height:11px;stroke:#2563eb;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+    .memo-toggle{background:none;border:none;cursor:pointer;padding:2px 3px;display:flex;align-items:center;}
+    .memo-toggle svg{width:15px;height:15px;stroke:#9ca3af;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
+    .memo-toggle.has-memo svg{stroke:#f59e0b;}
+    .memo-area{margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
+    .memo-input{width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px;font-family:inherit;resize:none;background:#fafafa;color:var(--text);line-height:1.55;}
+    .memo-input:focus{outline:2px solid #f59e0b;border-color:transparent;background:white;}
+    .memo-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:5px;}
+    .memo-save{background:var(--navy);color:white;border:none;padding:5px 12px;border-radius:7px;font-size:11px;cursor:pointer;font-family:inherit;}
+    .memo-cancel{background:#f3f4f6;color:var(--muted);border:none;padding:5px 10px;border-radius:7px;font-size:11px;cursor:pointer;font-family:inherit;}
+    .memo-display{font-size:12px;color:#92400e;background:#fffbeb;border-radius:7px;padding:7px 9px;margin-top:7px;line-height:1.55;white-space:pre-wrap;}
+    .memo-edit-btn{font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer;margin-top:4px;padding:0;}
+    .empty-sec{background:white;border-radius:13px;padding:.75rem 1rem;border:1px solid var(--border);font-size:12px;color:#9ca3af;}
+
+    /* weekly info bar */
+    .weekly-info{background:white;border-radius:13px;padding:.75rem 1rem;margin-bottom:1rem;border:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+    .weekly-info svg{width:14px;height:14px;stroke:#6b7280;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
+    .weekly-info-text{font-size:12px;color:var(--muted);line-height:1.5;}
+    .weekly-info strong{color:var(--text);font-weight:600;}
+
+    /* loading */
+    .loading-wrap{text-align:center;padding:3rem 1rem;}
+    .spinner{width:30px;height:30px;border:3px solid rgba(0,0,0,.07);border-top-color:var(--navy);border-radius:50%;animation:spin .75s linear infinite;margin:0 auto .875rem;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .loading-text{font-size:13px;color:var(--muted);margin-bottom:3px;}
+    .loading-sub{font-size:11px;color:#9ca3af;}
+
+    /* empty */
+    .empty-wrap{text-align:center;padding:3.5rem 1rem;}
+    .empty-icon-box{width:56px;height:56px;border-radius:16px;background:white;border:1px solid var(--border);margin:0 auto .875rem;display:flex;align-items:center;justify-content:center;}
+    .empty-icon-box svg{width:26px;height:26px;stroke:#9ca3af;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
+    .empty-title{font-size:15px;font-weight:600;margin-bottom:5px;}
+    .empty-sub{font-size:12px;color:var(--muted);line-height:1.6;}
+
+    /* error */
+    .err-bar{background:#fef2f2;border:1px solid #fecaca;border-radius:9px;padding:9px 13px;font-size:12px;color:#dc2626;margin-bottom:.75rem;}
+
+    /* date archive */
+    .archive-date-card{background:white;border-radius:13px;padding:.875rem 1rem;margin-bottom:6px;border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:space-between;}
+    .archive-date-card:active{opacity:.7;}
+    .archive-date{font-size:14px;font-weight:600;color:var(--text);}
+    .archive-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+    .archive-arrow svg{width:16px;height:16px;stroke:#d1d5db;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+    .memo-badge{color:#f59e0b;}
+    .back-btn{display:flex;align-items:center;gap:5px;background:none;border:none;color:rgba(255,255,255,.7);font-size:13px;cursor:pointer;font-family:inherit;padding:.5rem 0 .25rem;}
+    .back-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+
+    /* search */
+    .search-hint{text-align:center;padding:2.5rem 1rem;}
+    .search-hint-icon{width:48px;height:48px;border-radius:14px;background:white;border:1px solid var(--border);margin:0 auto .75rem;display:flex;align-items:center;justify-content:center;}
+    .search-hint-icon svg{width:22px;height:22px;stroke:#9ca3af;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+    .search-hint-text{font-size:13px;color:var(--muted);line-height:1.6;}
+    .search-result-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:8px;}
+    .search-date-label{font-size:11px;color:var(--muted);margin:10px 0 5px;font-weight:500;}
+    .search-count{font-size:12px;color:var(--muted);margin-bottom:.75rem;}
+    .highlight{background:#fef9c3;border-radius:2px;}
+
+    /* modal */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:flex;align-items:flex-end;}
+    .modal-sheet{background:white;width:100%;border-radius:20px 20px 0 0;padding:1.25rem;padding-bottom:calc(1.25rem + env(safe-area-inset-bottom,0px));}
+    .modal-handle{width:36px;height:4px;background:#e5e7eb;border-radius:2px;margin:0 auto 1rem;}
+    .modal-title{font-size:16px;font-weight:600;margin-bottom:.875rem;}
+    .modal-close{width:100%;background:#f3f4f6;color:var(--text);border:none;padding:11px;border-radius:9px;font-size:13px;cursor:pointer;font-family:inherit;margin-top:7px;}
+
+    /* splash */
+    .splash{position:fixed;inset:0;background:linear-gradient(135deg,#0a1628 0%,#0d2147 100%);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .4s ease;padding-bottom:env(safe-area-inset-bottom,0);}
+    .splash.fade-out{opacity:0;pointer-events:none;}
+    .splash-icon{width:80px;height:80px;border-radius:20px;overflow:hidden;margin-bottom:22px;}
+    .splash-name{font-size:20px;font-weight:700;color:white;letter-spacing:-.4px;margin-bottom:5px;}
+    .splash-hint{font-size:13px;color:rgba(255,255,255,.35);margin-bottom:40px;}
+    .splash-loader{display:flex;gap:7px;}
+    .splash-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.2);animation:sdot 1.2s ease-in-out infinite;}
+    .splash-dot:nth-child(2){animation-delay:.2s;}
+    .splash-dot:nth-child(3){animation-delay:.4s;}
+    @keyframes sdot{0%,80%,100%{background:rgba(255,255,255,.2);}40%{background:rgba(255,255,255,.8);}}
+
+    .hidden{display:none!important;}
+    .vis-hidden{visibility:hidden;pointer-events:none;}
+  </style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div class="splash" id="splash">
+  <div class="splash-icon">
+    <img src="apple-touch-icon.png" width="80" height="80" style="display:block;">
+  </div>
+  <div class="splash-name">HR daily News</div>
+  <div class="splash-hint">오늘의 HR 인사이트</div>
+  <div class="splash-loader">
+    <div class="splash-dot"></div><div class="splash-dot"></div><div class="splash-dot"></div>
+  </div>
+</div>
+
+<!-- TOP BAR -->
+<div class="top-bar" id="top-bar">
+  <div class="top-inner">
+    <div class="top-row">
+      <div id="title-area">
+        <div class="app-lbl">HR daily News</div>
+        <div class="top-title" id="top-title">오늘</div>
+      </div>
+      <!-- inline search bar (검색 탭 전용) -->
+      <div class="inline-search hidden" id="inline-search">
+        <div class="search-bar">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="search" id="search-input" placeholder="" oninput="doSearch()" autocomplete="off">
+          <button class="search-clear" onclick="clearSearch()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+      </div>
+      <div class="top-actions" id="top-actions">
+        <button class="icon-btn" onclick="openSettings()">
+          <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <button class="refresh-btn" id="refresh-btn" onclick="fetchNews()">뉴스 받기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: 오늘 -->
+<div class="page" id="page-today">
+  <div class="last-bar-inline vis-hidden" id="last-bar"></div>
+  <div class="err-bar hidden" id="err-bar"></div>
+  <div id="today-setup" class="hidden">
+    <div class="setup-card">
+      <div class="setup-title">처음 사용하세요? API 키가 필요합니다</div>
+      <div class="setup-desc">뉴스는 주요 언론사 RSS에서 무료로 수집하고, Claude가 요약·분류합니다. Anthropic API 키만 있으면 돼요.</div>
+      <ul class="setup-steps">
+        <li><span class="step-num">1</span><span><a class="setup-link" href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> 접속 후 회원가입</span></li>
+        <li><span class="step-num">2</span><span>왼쪽 메뉴 "API Keys" → "Create Key"</span></li>
+        <li><span class="step-num">3</span><span>생성된 키(sk-ant-...)를 아래에 붙여넣기</span></li>
+      </ul>
+      <div class="field-label">Anthropic API 키</div>
+      <input class="api-input" type="password" id="api-key-input" placeholder="sk-ant-api03-..." autocomplete="off">
+      <button class="save-btn" onclick="saveKey()">저장하고 시작하기</button>
+    </div>
+  </div>
+  <div id="today-loading" class="hidden">
+    <div class="loading-wrap">
+      <div class="spinner"></div>
+      <div class="loading-text">어제의 주요 뉴스를 수집하는 중...</div>
+      <div class="loading-sub">연합뉴스 · 한국경제 · 매일경제 · 조선 · 중앙 · 동아 · 고용노동부 외 21개 소스</div>
+    </div>
+  </div>
+  <div id="today-empty">
+    <div class="empty-wrap">
+      <div class="empty-icon-box"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+      <div class="empty-title">어제의 HR 주요 뉴스</div>
+      <div class="empty-sub">매일 오전 8시, 앱을 열면<br>어제의 핵심 HR 뉴스를 자동으로 받아와요</div>
+    </div>
+  </div>
+  <div id="today-news" class="hidden"></div>
+</div>
+
+<!-- PAGE: 주간 -->
+<div class="page hidden" id="page-weekly">
+  <div id="weekly-empty">
+    <div class="empty-wrap">
+      <div class="empty-icon-box"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+      <div class="empty-title">주간 HR 인사이트</div>
+      <div class="empty-sub">"뉴스 받기"를 누르면<br>이번 주 핵심 HR 트렌드를 정리해드려요</div>
+    </div>
+  </div>
+  <div id="weekly-news" class="hidden"></div>
+</div>
+
+<!-- PAGE: 날짜별 -->
+<div class="page hidden" id="page-date">
+  <div id="date-list"></div>
+  <div id="date-detail" class="hidden"></div>
+</div>
+
+<!-- PAGE: 주제별 -->
+<div class="page hidden" id="page-topic">
+  <div id="topic-list"></div>
+  <div id="topic-detail" class="hidden"></div>
+</div>
+
+<!-- PAGE: 검색 -->
+<div class="page hidden" id="page-search">
+  <div id="search-results">
+    <div class="search-hint">
+      <div class="search-hint-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+      <div class="search-hint-text">검색어를 입력하세요<br>기사 제목, 요약, 메모를 통합 검색합니다</div>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="nav-today" onclick="switchPage('today')">
+    <svg viewBox="0 0 24 24"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6z"/></svg>
+    <span class="nav-label">어제</span>
+  </button>
+  <button class="nav-btn" id="nav-weekly" onclick="switchPage('weekly')">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="13" y2="18"/></svg>
+    <span class="nav-label">주간</span>
+  </button>
+  <button class="nav-btn" id="nav-date" onclick="switchPage('date')">
+    <svg viewBox="0 0 24 24"><polyline points="21,8 21,21 3,21 3,8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+    <span class="nav-label">날짜별</span>
+  </button>
+  <button class="nav-btn" id="nav-topic" onclick="switchPage('topic')">
+    <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+    <span class="nav-label">주제별</span>
+  </button>
+  <button class="nav-btn" id="nav-search" onclick="switchPage('search')">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <span class="nav-label">검색</span>
+  </button>
+</nav>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay hidden" id="settings-modal" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">설정</div>
+    <div class="field-label">Anthropic API 키</div>
+    <input class="api-input" type="password" id="modal-api-input" placeholder="sk-ant-api03-...">
+    <button class="save-btn" onclick="saveKeyModal()">저장</button>
+    <button class="modal-close" onclick="document.getElementById('settings-modal').classList.add('hidden')">닫기</button>
+    <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);">
+      <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px;">📱 매일 오전 8시 자동 알림 설정</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.7;">
+        iPhone 기본 앱 <strong>단축어</strong>에서 자동화를 설정하면<br>매일 오전 8시에 앱이 자동으로 열려요.<br><br>
+        <strong>설정 방법</strong><br>
+        1. 단축어 앱 → 하단 <strong>자동화</strong> 탭<br>
+        2. 우상단 <strong>+</strong> → <strong>시간대</strong> 선택<br>
+        3. 오전 8:00 설정 → <strong>매일</strong> 반복<br>
+        4. 새 액션 추가 → <strong>URL 열기</strong> 검색<br>
+        5. URL 입력: <code style="background:#f3f4f6;padding:1px 5px;border-radius:4px;font-size:10px;">https://[GitHub아이디].github.io/hr-daily-news</code><br>
+        6. <strong>실행 전 확인</strong> 끄기 → 완료
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── ICONS ── */
+const ICO = {
+  link:`<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`,
+  memo:`<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`,
+  chevR:`<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#d1d5db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,18 15,12 9,6"/></svg>`,
+  chevL:`<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,18 9,12 15,6"/></svg>`,
+  emptyCal:`<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+  search:`<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+  info:`<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#6b7280" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+};
+
+/* ── SECTION CONFIG ── */
+const DAILY_SEC = {
+  '고용정책':{ label:'고용정책/정부동향', color:'#d97706', bg:'#fffbeb' },
+  '보상급여': { label:'보상/급여',         color:'#059669', bg:'#ecfdf5' },
+};
+const WEEKLY_SEC = {
+  '성과관리':   { label:'성과관리·평가',           color:'#ea580c', bg:'#fff7ed' },
+  '채용':       { label:'채용',                   color:'#2563eb', bg:'#eff6ff' },
+  '인재개발':   { label:'인재개발·조직문화·리더십', color:'#db2777', bg:'#fdf2f8' },
+  'HR테크':     { label:'HR테크',                 color:'#7c3aed', bg:'#f5f3ff' },
+  '글로벌HR':   { label:'글로벌 HR',               color:'#0891b2', bg:'#ecfeff' },
+  'HBR인사이트':{ label:'HBR 인사이트',            color:'#be123c', bg:'#fff1f2' },
+};
+const DAILY_ORDER   = ['고용정책','보상급여'];
+const WEEKLY_ORDER  = ['성과관리','채용','인재개발','HR테크','글로벌HR','HBR인사이트'];
+
+/* ── PROMPTS ── */
+const RSS_FEEDS = [
+  /* 통신사 */
+  { url:'https://www.yna.co.kr/rss/economy.xml',                                         name:'연합뉴스' },
+  { url:'https://newsis.com/RSS/Economy.xml',                                             name:'뉴시스' },
+  /* 경제지 */
+  { url:'https://www.hankyung.com/feed/economy',                                          name:'한국경제' },
+  { url:'https://www.mk.co.kr/rss/30200030/',                                             name:'매일경제' },
+  { url:'https://www.sedaily.com/RSSFeed/Economy',                                        name:'서울경제' },
+  { url:'https://www.edaily.co.kr/rss/rss_2000.xml',                                      name:'이데일리' },
+  { url:'https://www.mt.co.kr/rss/mt_m_rss_economy.xml',                                  name:'머니투데이' },
+  { url:'https://www.fnnews.com/rss/fn_realnews_channel_economy.xml',                      name:'파이낸셜뉴스' },
+  { url:'https://www.inews24.com/rss/rss.php?r=economy',                                  name:'아이뉴스24' },
+  /* 종합일간지 */
+  { url:'https://www.chosun.com/arc/outboundfeeds/rss/category/economy/?outputType=xml',  name:'조선일보' },
+  { url:'https://rss.joins.com/joins_news_list.xml',                                      name:'중앙일보' },
+  { url:'https://www.donga.com/rss/economy.xml',                                          name:'동아일보' },
+  { url:'https://www.hani.co.kr/rss/economy/',                                            name:'한겨레' },
+  { url:'https://www.khan.co.kr/rss/rssdata/economy_news.xml',                            name:'경향신문' },
+  /* IT·산업 전문지 */
+  { url:'https://www.etnews.com/rss/section2.xml',                                        name:'전자신문' },
+  { url:'https://zdnet.co.kr/rss/',                                                       name:'ZDNet Korea' },
+  { url:'https://www.itworld.co.kr/rss/news.xml',                                         name:'ITWorld' },
+  /* 비즈니스·HR 전문 */
+  { url:'https://www.bizwatch.co.kr/rss/',                                                name:'비즈워치' },
+  { url:'https://www.hrinsight.co.kr/rss/allArticle.xml',                                 name:'HR인사이트' },
+  /* 정부·공공기관 */
+  { url:'https://www.moel.go.kr/rss/pressRelease.rss',                                    name:'고용노동부' },
+  { url:'https://www.keis.or.kr/rss/rssFeed.do',                                          name:'한국고용정보원' },
+];
+/* RSS 파싱 헬퍼 — 여러 프록시 순서대로 시도 */
+function parseRSSXML(xml, name){
+  try{
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xml, 'text/xml');
+    const items = [...doc.querySelectorAll('item')].slice(0,15);
+    return items.map(item=>({
+      title: item.querySelector('title')?.textContent?.trim()||'',
+      description: (item.querySelector('description')?.textContent||'').replace(/<[^>]+>/g,'').slice(0,250),
+      url: item.querySelector('link')?.textContent?.trim()||item.querySelector('guid')?.textContent?.trim()||'',
+      source:{name},
+      pubDate: item.querySelector('pubDate')?.textContent||''
+    })).filter(a=>a.title&&a.url);
+  }catch(e){ return null; }
+}
+
+async function fetchRSS(feedUrl, name){
+  const enc = encodeURIComponent(feedUrl);
+  const proxies = [
+    // 1. corsproxy.io — 직접 XML 반환
+    async () => {
+      const r = await fetch(`https://corsproxy.io/?${enc}`, {signal:AbortSignal.timeout(8000)});
+      if(!r.ok) throw new Error('fail');
+      const xml = await r.text();
+      return parseRSSXML(xml, name);
+    },
+    // 2. allorigins raw — 직접 XML 반환
+    async () => {
+      const r = await fetch(`https://api.allorigins.win/raw?url=${enc}`, {signal:AbortSignal.timeout(8000)});
+      if(!r.ok) throw new Error('fail');
+      const xml = await r.text();
+      return parseRSSXML(xml, name);
+    },
+    // 3. rss2json — JSON 반환 (무료, 한도 있음)
+    async () => {
+      const r = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${enc}&count=15`, {signal:AbortSignal.timeout(8000)});
+      if(!r.ok) throw new Error('fail');
+      const json = await r.json();
+      if(json.status!=='ok') throw new Error('fail');
+      return (json.items||[]).slice(0,15).map(item=>({
+        title: item.title||'',
+        description: (item.description||'').replace(/<[^>]+>/g,'').slice(0,250),
+        url: item.link||'',
+        source:{name},
+        pubDate: item.pubDate||''
+      })).filter(a=>a.title&&a.url);
+    },
+  ];
+  for(const tryProxy of proxies){
+    try{
+      const result = await tryProxy();
+      if(result && result.length > 0) return result;
+    }catch(e){ continue; }
+  }
+  return null;
+}
+
+const EXCLUDE_RULES = `
+제외 기준 (절대 포함 금지):
+- 지역 고용노동지청·고용센터의 설명회·간담회 (예: "양산고용노동지청, ○○법 설명회")
+- 특정 학교·기관의 정부 사업 선정·수상 (예: "○○대, K-Move 스쿨 선정", "○○기관 우수기관 선정")
+- 특정 기업 개인 연봉·성과급 단순 보도 (예: "○○ 회장 연봉 78% 증가")
+- 보훈·복지·장애인·취약계층 취업 지원 단신
+- 지역 단위 채용박람회·취업행사 공고
+- 기업 홍보성 보도자료 — MOU 체결, 솔루션 도입, 파트너십 발표
+- 단순 인사발령·임원 선임 공지
+- 특정 기업 복지 자랑성 기사`;
+
+const SYS_DAILY = `당신은 대기업 HR 담당자를 위한 전문 뉴스 큐레이터입니다.
+어제 하루 동안 보도된 기사 중 HR 담당자가 반드시 알아야 할 가장 중요한 기사를 섹션별로 최대 3건씩 선정해 요약하세요.
+코드블록, 마크다운, 설명 없이 순수 JSON만 출력하세요:
+{"date":"날짜","sections":{"고용정책":[{"title":"제목","summary":"2-3문장 요약","source":"출처","url":"URL"}],"보상급여":[...]}}
+
+[선정 기준 — 섹션별로 어제 임팩트가 컸던 기사 최대 3건 선택]
+1. HR·노동·고용·임금·조직문화 중 하나 이상과 직접 관련
+2. 중앙부처(고용노동부·기재부·국회 등) 정책 발표, 법령 개정, 전국 단위 변화
+3. 다수 기업 HR 담당자가 즉각 대응해야 할 내용
+4. 같은 주제를 다룬 기사가 여러 개면 가장 정보가 풍부하고 신뢰도 높은 출처의 기사만 선택 (주제 중복 금지)
+
+[판단 기준]
+- 이 기사를 몰랐다면 HR 운영에 문제가 생길 수 있는가?
+- 어제 가장 많이 다뤄진 HR 이슈인가?
+
+${EXCLUDE_RULES}
+섹션 분류: 고용정책(정부·법령), 보상급여(임금·성과급)
+섹션당 최대 3건. 기사가 없는 섹션은 빈 배열. URL은 원본 그대로.`;
+
+const SYS_WEEKLY = `당신은 대기업 HR 담당자를 위한 전문 뉴스 큐레이터입니다.
+수집된 기사 중 이번 주 HR 업계의 중요한 트렌드·인사이트를 4개 섹션으로 분류·요약하세요.
+코드블록, 마크다운, 설명 없이 순수 JSON만 출력하세요:
+{"weekLabel":"MM월 N주차","sections":{"성과관리":[{"title":"제목","summary":"2-3문장 요약","source":"출처","url":"URL"}],"채용":[...],"인재개발":[...],"HR테크":[...],"글로벌HR":[...],"HBR인사이트":[{"title":"영문 원제","summary":"한국어 2-3문장 요약","source":"HBR","url":"URL"}]}}
+
+[포함 기준 — 아래 조건을 모두 충족해야 선택]
+1. HR·조직문화·인재개발·리더십·성과관리·성과평가·HR테크·글로벌HR 중 하나와 직접 관련
+2. 단순 기업 사례 나열이 아닌, 산업 전반의 트렌드·연구·인사이트를 담은 기사
+3. HR 담당자가 중장기적으로 참고할 만한 내용
+
+[판단 기준 — 아래 질문에 "예"여야 선택]
+- 이 기사가 HR 전략이나 조직 설계에 영향을 줄 수 있는가?
+- 단순 보도가 아닌, 분석·연구·칼럼·인사이트 성격인가?
+
+${EXCLUDE_RULES}
+섹션 분류 기준:
+- 성과관리: 성과평가 방식·제도·도구, OKR·KPI 운영, 평가 피드백, 성과관리 트렌드
+- 채용: 채용 시장 동향·트렌드, 수시채용·공채, AI 면접, 직무 중심 채용, 채용 프로세스 변화
+- 인재개발: 기업교육·HRD·리스킬링·코칭·조직문화·직원경험·일하는 방식·리더십·팀 운영
+- HR테크: HRMS·AI 인사관리·피플애널리틱스·채용 자동화·HR 소프트웨어
+- 글로벌HR: 해외 법인·외국인 고용·글로벌 HR 트렌드·다국적 기업 인사
+- HBR인사이트: HBR 기사 전용. 제목은 영문 원제, 요약은 한국어.
+섹션당 최대 3건, 유사 주제 중복 금지. 기사가 없는 섹션은 빈 배열. URL은 원본 그대로.`;
+
+/* ── STATE ── */
+let currentPage = 'today';
+const now = new Date();
+const todayKey = now.toISOString().slice(0,10);
+
+/* 이번 주 월요일 날짜를 weekKey로 사용 */
+function getWeekKey(){
+  const d = new Date(now);
+  const day = d.getDay(); // 0=일, 1=월
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0,10);
+}
+const weekKey = getWeekKey();
+const isMonday = now.getDay() === 1;
+
+/* ── STORAGE ── */
+const getArchive = () => { try{return JSON.parse(localStorage.getItem('hr_archive')||'{}')}catch(e){return{}} };
+const saveArchive = a => localStorage.setItem('hr_archive', JSON.stringify(a));
+const getWeeklyArchive = () => { try{return JSON.parse(localStorage.getItem('hr_weekly')||'{}')}catch(e){return{}} };
+const saveWeeklyArchive = a => localStorage.setItem('hr_weekly', JSON.stringify(a));
+const getMemos = () => { try{return JSON.parse(localStorage.getItem('hr_memos')||'{}')}catch(e){return{}} };
+const saveMemos = m => localStorage.setItem('hr_memos', JSON.stringify(m));
+const articleKey = (d,s,i) => `${d}_${s}_${i}`;
+
+/* ── INIT ── */
+// 어제 날짜 계산
+const yesterday = new Date(now);
+yesterday.setDate(yesterday.getDate() - 1);
+const yesterdayLabel = yesterday.toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'});
+
+document.getElementById('top-title').textContent = yesterdayLabel;
+
+function init(){
+  if(!localStorage.getItem('hr_api_key')){
+    showToday('setup'); return;
+  }
+  const archive = getArchive();
+  if(archive[todayKey]){
+    renderToday(archive[todayKey]);
+  } else {
+    // 오전 8시 이후이고 오늘 데이터 없으면 자동 수신
+    if(now.getHours() >= 8){
+      fetchNews();
+    } else {
+      showToday('empty');
+    }
+  }
+  const weekly = getWeeklyArchive();
+  if(weekly[weekKey]){ renderWeekly(weekly[weekKey]); }
+}
+
+/* ── PAGE SWITCH ── */
+function switchPage(page){
+  currentPage = page;
+  ['today','weekly','date','topic','search'].forEach(p=>{
+    document.getElementById('page-'+p).classList.toggle('hidden', p!==page);
+    document.getElementById('nav-'+p).classList.toggle('active', p===page);
+  });
+  const isSearch = page==='search';
+  const isToday  = page==='today';
+  document.getElementById('inline-search').classList.toggle('hidden', !isSearch);
+  document.getElementById('top-actions').classList.toggle('vis-hidden', !isToday);
+  const titles = {
+    today:  yesterdayLabel,
+    weekly: '주간 HR 인사이트',
+    date:   '날짜별 아카이브',
+    topic:  '주제별 아카이브',
+    search: '검색',
+  };
+  document.getElementById('top-title').textContent = titles[page];
+  if(page==='date')  renderDateList();
+  if(page==='topic') renderTopicList();
+  if(isSearch) setTimeout(()=>document.getElementById('search-input').focus(),100);
+}
+
+/* ── TODAY ── */
+function showToday(view){
+  ['setup','loading','empty','news'].forEach(v=>
+    document.getElementById('today-'+v).classList.toggle('hidden', v!==view));
+}
+
+function renderToday(data){
+  const wrap = document.getElementById('today-news');
+  wrap.innerHTML = '';
+  DAILY_ORDER.forEach(key=>{
+    const s = DAILY_SEC[key];
+    const items = (data.sections&&data.sections[key])||[];
+    const block = document.createElement('div');
+    block.className = 'section-block'; block.id = 'sec-'+key;
+    block.innerHTML = `<div class="section-header">
+      <span class="section-badge" style="background:${s.bg};color:${s.color};">${s.label}</span>
+      <span class="section-count">${items.length}건</span>
+    </div>${items.length ? items.map((it,idx)=>newsCardHTML(todayKey,key,idx,it,s)).join('') : `<div class="empty-sec">오늘 관련 뉴스가 없습니다</div>`}`;
+    wrap.appendChild(block);
+  });
+  showToday('news');
+}
+
+/* ── WEEKLY ── */
+function renderWeekly(data){
+  const wrap = document.getElementById('weekly-news');
+  wrap.innerHTML = '';
+
+  // info bar
+  const weekLabel = data.weekLabel || '';
+  const updatedAt = data.fetchedAt ? new Date(data.fetchedAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+  const nextUpdate = isMonday ? '다음 주 월요일' : '다음 월요일';
+  wrap.innerHTML = `<div class="weekly-info">${ICO.info}<div class="weekly-info-text"><strong>${weekLabel}</strong> 핵심 HR 트렌드 · ${updatedAt} 업데이트 · ${nextUpdate}에 갱신</div></div>`;
+
+  WEEKLY_ORDER.forEach(key=>{
+    const s = WEEKLY_SEC[key];
+    const items = (data.sections&&data.sections[key])||[];
+    const block = document.createElement('div');
+    block.className = 'section-block'; block.id = 'wsec-'+key;
+    block.innerHTML = `<div class="section-header">
+      <span class="section-badge" style="background:${s.bg};color:${s.color};">${s.label}</span>
+      <span class="section-count">${items.length}건</span>
+    </div>${items.length ? items.map((it,idx)=>newsCardHTML('w_'+weekKey,key,idx,it,s)).join('') : `<div class="empty-sec">이번 주 관련 뉴스가 없습니다</div>`}`;
+    wrap.appendChild(block);
+  });
+
+  document.getElementById('weekly-empty').classList.add('hidden');
+  wrap.classList.remove('hidden');
+}
+
+/* ── NEWS CARD ── */
+function newsCardHTML(dateStr, secKey, idx, it, s){
+  const aKey = articleKey(dateStr,secKey,idx);
+  const memos = getMemos();
+  const memo = memos[aKey]||'';
+  const hasMemo = memo.length > 0;
+  const isHBR = secKey === 'HBR인사이트';
+  const memoSvg = ICO.memo.replace('stroke-linecap="round" stroke-linejoin="round"',
+    `stroke-linecap="round" stroke-linejoin="round" stroke="${hasMemo?'#f59e0b':'#9ca3af'}"`);
+  const memoBtn = `<button class="memo-toggle${hasMemo?' has-memo':''}" onclick="toggleMemo('${aKey}')">${memoSvg}</button>`;
+  const linkHtml = it.url ? `<a class="news-link" href="${it.url}" target="_blank">원문${ICO.link}</a>` : '';
+  const memoSection = hasMemo
+    ? `<div class="memo-area" id="memo-area-${aKey}"><div class="memo-display">${escHtml(memo)}</div><button class="memo-edit-btn" onclick="editMemo('${aKey}','${escAttr(memo)}')">수정</button></div>`
+    : `<div class="memo-area hidden" id="memo-area-${aKey}"><textarea class="memo-input" id="memo-input-${aKey}" rows="2" placeholder="메모를 남겨보세요"></textarea><div class="memo-actions"><button class="memo-cancel" onclick="closeMemo('${aKey}')">취소</button><button class="memo-save" onclick="saveMemo('${aKey}')">저장</button></div></div>`;
+  return `<div class="news-card${isHBR?' hbr':''}" id="card-${aKey}">
+    <div class="news-top">
+      <span class="news-dot" style="background:${s.color};"></span>
+      <span class="news-title${isHBR?' en':''}">${escHtml(it.title||'')}</span>
+    </div>
+    <p class="news-summary">${escHtml(it.summary||'')}</p>
+    <div class="news-footer">
+      <span class="news-source${isHBR?' hbr-src':''}">${escHtml(it.source||'')}</span>
+      <div class="footer-actions">${linkHtml}${memoBtn}</div>
+    </div>
+    ${memoSection}
+  </div>`;
+}
+
+/* ── MEMO ── */
+function toggleMemo(aKey){
+  const area = document.getElementById('memo-area-'+aKey);
+  if(getMemos()[aKey]) return;
+  area.classList.toggle('hidden');
+  if(!area.classList.contains('hidden')) document.getElementById('memo-input-'+aKey)?.focus();
+}
+function closeMemo(aKey){ document.getElementById('memo-area-'+aKey).classList.add('hidden'); }
+function saveMemo(aKey){
+  const inp = document.getElementById('memo-input-'+aKey); if(!inp) return;
+  const val = inp.value.trim(); if(!val) return;
+  const memos = getMemos(); memos[aKey]=val; saveMemos(memos);
+  document.getElementById('memo-area-'+aKey).innerHTML =
+    `<div class="memo-display">${escHtml(val)}</div><button class="memo-edit-btn" onclick="editMemo('${aKey}','${escAttr(val)}')">수정</button>`;
+  const btn = document.querySelector(`#card-${aKey} .memo-toggle`);
+  if(btn){btn.classList.add('has-memo');btn.querySelector('svg').style.stroke='#f59e0b';}
+}
+function editMemo(aKey,cur){
+  document.getElementById('memo-area-'+aKey).innerHTML =
+    `<textarea class="memo-input" id="memo-input-${aKey}" rows="2">${escHtml(cur)}</textarea><div class="memo-actions"><button class="memo-cancel" onclick="cancelEditMemo('${aKey}','${escAttr(cur)}')">취소</button><button class="memo-save" onclick="saveMemo('${aKey}')">저장</button></div>`;
+  document.getElementById('memo-input-'+aKey).focus();
+}
+function cancelEditMemo(aKey,val){
+  document.getElementById('memo-area-'+aKey).innerHTML =
+    `<div class="memo-display">${escHtml(val)}</div><button class="memo-edit-btn" onclick="editMemo('${aKey}','${escAttr(val)}')">수정</button>`;
+}
+
+/* ── FETCH ── */
+async function fetchNews(){
+  const anthropicKey = localStorage.getItem('hr_api_key');
+  if(!anthropicKey){ showToday('setup'); return; }
+
+  const archive = getArchive();
+  if(archive[todayKey]){
+    const bar = document.getElementById('err-bar');
+    bar.textContent = '오늘 브리핑은 이미 받으셨습니다. 내일 다시 받을 수 있어요.';
+    bar.classList.remove('hidden');
+    renderToday(archive[todayKey]);
+    return;
+  }
+
+  const btn = document.getElementById('refresh-btn');
+  btn.disabled = true;
+  document.getElementById('err-bar').classList.add('hidden');
+  showToday('loading');
+
+  try{
+    /* 1. RSS 피드 배치 수집 (5개씩 묶어서 순차 처리) */
+    const seen = new Set();
+    let allArticles = [];
+    const BATCH = 5;
+    for(let i = 0; i < RSS_FEEDS.length; i += BATCH){
+      const batch = RSS_FEEDS.slice(i, i + BATCH);
+      const results = await Promise.allSettled(
+        batch.map(feed => fetchRSS(feed.url, feed.name))
+      );
+      results.forEach(r => {
+        if(r.status !== 'fulfilled' || !r.value) return;
+        r.value.forEach(item => {
+          if(!seen.has(item.url)){
+            seen.add(item.url);
+            allArticles.push(item);
+          }
+        });
+      });
+    }
+    if(!allArticles.length) throw new Error('RSS_EMPTY');
+    allArticles.sort((a,b) => new Date(b.pubDate||0) - new Date(a.pubDate||0));
+
+    /* 2. JS 사전 필터 — HR 키워드가 하나도 없는 기사 제거 */
+    const HR_KEYWORDS = [
+      /* 고용·노동 정책 */
+      '고용','노동','근로','취업','실업','구직','구인','일자리','워크넷',
+      '고용보험','산재','노동부','고용부','노동청','고용센터','근로기준',
+      '최저임금','임금','연봉','성과급','급여','임금체계','직무급','호봉',
+      '주 52시간','근로시간','유연근무','재택근무','탄력근무',
+      '육아휴직','출산휴가','육아기','모성보호',
+      /* 채용·인사 */
+      '채용','공채','수시채용','인턴','면접','입사','신입','경력직',
+      '인사','HR','인재','헤드헌팅','이직','퇴직','해고','권고사직',
+      '조직문화','직원','임직원','구성원','팀장','리더십',
+      /* 보상·복지 */
+      '복리후생','복지','스톡옵션','RSU','성과관리','성과평가','KPI','OKR',
+      '직무','직급','직책','승진','평가','보상',
+      /* 인재개발 */
+      '교육','연수','HRD','리스킬링','업스킬링','역량','훈련','학습',
+      /* HR 테크 */
+      'HRMS','HCM','ATS','피플애널리틱스','HR테크','인사시스템',
+      /* 노사·법령 */
+      '노조','노동조합','파업','단체협약','노사','산업안전','중대재해',
+      '근로계약','취업규칙','징계','해고','부당해고',
+      /* 글로벌 */
+      '외국인근로자','비자','고용허가','해외법인','글로벌HR',
+    ];
+    const hrFiltered = allArticles.filter(a => {
+      const text = (a.title + ' ' + a.description).toLowerCase();
+      return HR_KEYWORDS.some(kw => text.includes(kw.toLowerCase()));
+    });
+    // 필터 후 기사가 너무 적으면 원본 사용 (안전망)
+    const articlesToUse = hrFiltered.length >= 5 ? hrFiltered : allArticles;
+
+    /* 3. HBR RSS */
+    let hbrArticles = [];
+    try{
+      const hbrItems = await fetchRSS('https://hbr.org/rss/topic/human-resources', 'HBR');
+      if(hbrItems) hbrArticles = hbrItems.slice(0,10);
+    }catch(e){}
+
+    const today = now.toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
+    const articleList = articlesToUse.slice(0,50).map((a,i)=>`[${i+1}] 제목: ${a.title}\n출처: ${a.source?.name||''}\nURL: ${a.url}\n내용: ${a.description}`).join('\n\n');
+    const hbrList = hbrArticles.length ? '\n\n[HBR 기사 — HBR인사이트 섹션 전용]\n'+hbrArticles.map((a,i)=>`[HBR-${i+1}] 제목: ${a.title}\n출처: HBR\nURL: ${a.url}\n내용: ${a.description}`).join('\n\n') : '';
+
+    /* 3. Claude — 오늘 (Daily) */
+    const yesterdayStr = yesterday.toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
+    const dailyResp = await callClaude(anthropicKey, SYS_DAILY,
+      `어제 날짜: ${yesterdayStr}\n\n아래는 어제 수집된 기사입니다. 섹션별로 어제 가장 중요한 기사 1건을 선정해 요약해주세요.\n\n${articleList}\n\n출처 우선순위: 고용노동부·연합뉴스·한국경제·매일경제·조선일보·중앙일보·동아일보·서울경제 우선.`);
+    const dailyParsed = JSON.parse(dailyResp.replace(/\`\`\`json\s*/g,'').replace(/\`\`\`\s*/g,'').trim());
+    const fetchedAt = new Date().toISOString();
+    archive[todayKey] = {...dailyParsed, fetchedAt};
+    saveArchive(archive);
+    renderToday(dailyParsed);
+    setLastBar(fetchedAt);
+
+    /* 4. Claude — 주간 (Weekly) */
+    const weeklyArchive = getWeeklyArchive();
+    if(!weeklyArchive[weekKey] || isMonday){
+      const weekLabel = getWeekLabel();
+      const weeklyResp = await callClaude(anthropicKey, SYS_WEEKLY,
+        `이번 주(${weekLabel}) HR 트렌드 분석\n\n${articleList}${hbrList}`);
+      const weeklyParsed = JSON.parse(weeklyResp.replace(/\`\`\`json\s*/g,'').replace(/\`\`\`\s*/g,'').trim());
+      weeklyArchive[weekKey] = {...weeklyParsed, fetchedAt, weekLabel};
+      saveWeeklyArchive(weeklyArchive);
+      renderWeekly(weeklyArchive[weekKey]);
+    }
+
+  }catch(e){
+    const bar = document.getElementById('err-bar');
+    const msg = e.message||'';
+    if(msg.includes('RSS_EMPTY')) bar.textContent='RSS 피드에서 기사를 가져오지 못했습니다. 잠시 후 다시 시도해주세요.';
+    else if(msg.includes('API:401')) bar.textContent='Anthropic API 키가 올바르지 않습니다. ⚙ 설정에서 확인해주세요.';
+    else if(msg.includes('API:403')||msg.includes('credit')) bar.textContent='크레딧 부족. console.anthropic.com → Billing에서 충전해주세요.';
+    else if(msg.includes('API:429')) bar.textContent='API 사용량 한도 초과입니다. 잠시 후 다시 시도해주세요.';
+    else if(msg.includes('NETWORK')) bar.textContent='네트워크 오류. 인터넷 연결을 확인해주세요.';
+    else bar.textContent='오류: '+msg;
+    bar.classList.remove('hidden');
+    if(archive[todayKey]) renderToday(archive[todayKey]); else showToday('empty');
+  }finally{ btn.disabled=false; }
+}
+
+async function callClaude(key, sys, prompt){
+  let resp;
+  try{
+    resp = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:3000,system:sys,messages:[{role:'user',content:prompt}]})
+    });
+  }catch(e){ throw new Error('NETWORK:'+e.message); }
+  const data = await resp.json();
+  if(data.error) throw new Error('API:'+resp.status+':'+data.error.message);
+  const text = data.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+  if(!text) throw new Error('EMPTY');
+  return text;
+}
+
+function getWeekLabel(){
+  const monday = new Date(weekKey);
+  const month = monday.getMonth()+1;
+  const weekOfMonth = Math.ceil(monday.getDate()/7);
+  return `${month}월 ${weekOfMonth}주차`;
+}
+
+function setLastBar(ts){
+  if(!ts) return;
+  const el = document.getElementById('last-bar');
+  const d = new Date(ts);
+  el.textContent = '마지막 업데이트 '+d.toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  el.classList.remove('vis-hidden');
+}
+
+function jumpTo(btn,sec){
+  document.querySelectorAll('#sec-tabs .sec-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  if(sec==='all'){document.getElementById('page-today').scrollTo({top:0,behavior:'smooth'});return;}
+  const el=document.getElementById('sec-'+sec);
+  if(el) document.getElementById('page-today').scrollTo({top:el.offsetTop-120,behavior:'smooth'});
+}
+function jumpToWeekly(btn,sec){
+  document.querySelectorAll('#weekly-tabs .sec-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  if(sec==='all'){document.getElementById('page-weekly').scrollTo({top:0,behavior:'smooth'});return;}
+  const el=document.getElementById('wsec-'+sec);
+  if(el) document.getElementById('page-weekly').scrollTo({top:el.offsetTop-120,behavior:'smooth'});
+}
+
+/* ── DATE ARCHIVE ── */
+function renderDateList(){
+  const archive = getArchive();
+  const weeklyArchive = getWeeklyArchive();
+  const list = document.getElementById('date-list');
+  const detail = document.getElementById('date-detail');
+  detail.classList.add('hidden'); list.classList.remove('hidden');
+  const dates = Object.keys(archive).sort((a,b)=>b.localeCompare(a));
+  const weekDates = Object.keys(weeklyArchive).sort((a,b)=>b.localeCompare(a));
+  if(!dates.length && !weekDates.length){
+    list.innerHTML=`<div class="empty-wrap"><div class="empty-icon-box">${ICO.emptyCal}</div><div class="empty-title">저장된 브리핑이 없어요</div><div class="empty-sub">뉴스를 받으면 날짜별로 저장됩니다</div></div>`; return;
+  }
+  const memos = getMemos();
+  let html = '';
+  if(weekDates.length){
+    html += `<div style="font-size:11px;color:var(--muted);margin:0 0 6px;font-weight:500;">주간 브리핑</div>`;
+    html += weekDates.map(wk=>{
+      const item = weeklyArchive[wk];
+      const label = item.weekLabel||new Date(wk).toLocaleDateString('ko-KR',{month:'long',day:'numeric'})+'주';
+      const total = WEEKLY_ORDER.reduce((s,k)=>s+((item.sections&&item.sections[k])||[]).length,0);
+      return `<div class="archive-date-card" onclick="showWeeklyDetail('${wk}')">
+        <div><div class="archive-date">${label}</div><div class="archive-meta">기사 ${total}건</div></div>
+        <div class="archive-arrow">${ICO.chevR}</div></div>`;
+    }).join('');
+    html += `<div style="height:12px;"></div>`;
+  }
+  if(dates.length){
+    html += `<div style="font-size:11px;color:var(--muted);margin:0 0 6px;font-weight:500;">일간 브리핑</div>`;
+    html += dates.map(d=>{
+      const item = archive[d];
+      const label = new Date(d).toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+      const total = DAILY_ORDER.reduce((s,k)=>s+((item.sections&&item.sections[k])||[]).length,0);
+      const mc = Object.keys(memos).filter(k=>k.startsWith(d+'_')).length;
+      return `<div class="archive-date-card" onclick="showDateDetail('${d}')">
+        <div><div class="archive-date">${label}${d===todayKey?' — 오늘':''}</div>
+        <div class="archive-meta">기사 ${total}건${mc>0?' · <span class="memo-badge">메모 '+mc+'개</span>':''}</div></div>
+        <div class="archive-arrow">${ICO.chevR}</div></div>`;
+    }).join('');
+  }
+  list.innerHTML = html;
+}
+
+/* ── TOPIC ARCHIVE ── */
+function renderTopicList(){
+  const archive = getArchive();
+  const weeklyArchive = getWeeklyArchive();
+  const list = document.getElementById('topic-list');
+  const detail = document.getElementById('topic-detail');
+  detail.classList.add('hidden'); list.classList.remove('hidden');
+  const allDailyDates = Object.keys(archive);
+  const allWeeklyDates = Object.keys(weeklyArchive);
+  if(!allDailyDates.length && !allWeeklyDates.length){
+    list.innerHTML=`<div class="empty-wrap"><div class="empty-icon-box">${ICO.emptyCal}</div><div class="empty-title">저장된 브리핑이 없어요</div><div class="empty-sub">뉴스를 받으면 주제별로 저장됩니다</div></div>`; return;
+  }
+  const memos = getMemos();
+  let html = '';
+  // 일간 섹션
+  if(allDailyDates.length){
+    html += `<div style="font-size:11px;color:var(--muted);margin:0 0 6px;font-weight:500;">일간 섹션</div>`;
+    html += DAILY_ORDER.map(key=>{
+      const s = DAILY_SEC[key];
+      let total = 0;
+      allDailyDates.forEach(d=>{ total += ((archive[d].sections&&archive[d].sections[key])||[]).length; });
+      const mc = Object.keys(memos).filter(k=>{ const p=k.split('_'); return !k.startsWith('w_') && p[1]===key; }).length;
+      return `<div class="archive-date-card" style="border-left:3px solid ${s.color};" onclick="showTopicDetail('${key}','daily')">
+        <div>
+          <div class="archive-date">${s.label}</div>
+          <div class="archive-meta">기사 ${total}건 · ${allDailyDates.length}일치${mc>0?' · <span class="memo-badge">메모 '+mc+'개</span>':''}</div>
+        </div>
+        <div class="archive-arrow">${ICO.chevR}</div>
+      </div>`;
+    }).join('');
+    html += `<div style="height:12px;"></div>`;
+  }
+  // 주간 섹션
+  if(allWeeklyDates.length){
+    html += `<div style="font-size:11px;color:var(--muted);margin:0 0 6px;font-weight:500;">주간 섹션</div>`;
+    html += WEEKLY_ORDER.map(key=>{
+      const s = WEEKLY_SEC[key];
+      let total = 0;
+      allWeeklyDates.forEach(wk=>{ total += ((weeklyArchive[wk].sections&&weeklyArchive[wk].sections[key])||[]).length; });
+      return `<div class="archive-date-card" style="border-left:3px solid ${s.color};" onclick="showTopicDetail('${key}','weekly')">
+        <div>
+          <div class="archive-date">${s.label}</div>
+          <div class="archive-meta">기사 ${total}건 · ${allWeeklyDates.length}주치</div>
+        </div>
+        <div class="archive-arrow">${ICO.chevR}</div>
+      </div>`;
+    }).join('');
+  }
+  list.innerHTML = html;
+}
+
+function showTopicDetail(secKey, type){
+  const isDaily = type==='daily';
+  const s = isDaily ? DAILY_SEC[secKey] : WEEKLY_SEC[secKey];
+  if(!s) return;
+  document.getElementById('topic-list').classList.add('hidden');
+  const detail = document.getElementById('topic-detail'); detail.classList.remove('hidden');
+  document.getElementById('top-title').textContent = s.label;
+  let html = `<button class="back-btn" onclick="backToTopicList()">${ICO.chevL} 주제별</button>`;
+  if(isDaily){
+    const dates = Object.keys(getArchive()).sort((a,b)=>b.localeCompare(a));
+    dates.forEach(dateStr=>{
+      const items = ((getArchive()[dateStr].sections&&getArchive()[dateStr].sections[secKey])||[]);
+      if(!items.length) return;
+      const label = new Date(dateStr).toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'})+(dateStr===todayKey?' — 오늘':'');
+      html += `<div style="font-size:11px;color:var(--muted);margin:10px 0 5px;font-weight:500;">${label}</div>`;
+      html += items.map((it,idx)=>newsCardHTML(dateStr,secKey,idx,it,s)).join('');
+    });
+  } else {
+    const weeks = Object.keys(getWeeklyArchive()).sort((a,b)=>b.localeCompare(a));
+    weeks.forEach(wk=>{
+      const items = ((getWeeklyArchive()[wk].sections&&getWeeklyArchive()[wk].sections[secKey])||[]);
+      if(!items.length) return;
+      const label = getWeeklyArchive()[wk].weekLabel||wk;
+      html += `<div style="font-size:11px;color:var(--muted);margin:10px 0 5px;font-weight:500;">${label}</div>`;
+      html += items.map((it,idx)=>newsCardHTML('w_'+wk,secKey,idx,it,s)).join('');
+    });
+  }
+  detail.innerHTML = html;
+  document.getElementById('page-topic').scrollTo({top:0,behavior:'smooth'});
+}
+
+function backToTopicList(){
+  document.getElementById('top-title').textContent='주제별 아카이브';
+  renderTopicList();
+}
+
+function showDateDetail(dateStr){
+  const data = getArchive()[dateStr]; if(!data) return;
+  document.getElementById('date-list').classList.add('hidden');
+  const detail = document.getElementById('date-detail'); detail.classList.remove('hidden');
+  const dt = new Date(dateStr);
+  document.getElementById('top-title').textContent = dt.toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'});
+  detail.innerHTML = `<button class="back-btn" onclick="backToList()">${ICO.chevL} 아카이브</button>`+
+    DAILY_ORDER.map(key=>{
+      const s=DAILY_SEC[key]; const items=(data.sections&&data.sections[key])||[];
+      return `<div class="section-block"><div class="section-header"><span class="section-badge" style="background:${s.bg};color:${s.color};">${s.label}</span><span class="section-count">${items.length}건</span></div>
+      ${items.map((it,idx)=>newsCardHTML(dateStr,key,idx,it,s)).join('')}</div>`;
+    }).join('');
+  document.getElementById('page-date').scrollTo({top:0,behavior:'smooth'});
+}
+
+function showWeeklyDetail(wk){
+  const data = getWeeklyArchive()[wk]; if(!data) return;
+  document.getElementById('date-list').classList.add('hidden');
+  const detail = document.getElementById('date-detail'); detail.classList.remove('hidden');
+  document.getElementById('top-title').textContent = data.weekLabel||'주간';
+  detail.innerHTML = `<button class="back-btn" onclick="backToList()">${ICO.chevL} 아카이브</button>`+
+    WEEKLY_ORDER.map(key=>{
+      const s=WEEKLY_SEC[key]; const items=(data.sections&&data.sections[key])||[];
+      return `<div class="section-block"><div class="section-header"><span class="section-badge" style="background:${s.bg};color:${s.color};">${s.label}</span><span class="section-count">${items.length}건</span></div>
+      ${items.map((it,idx)=>newsCardHTML('w_'+wk,key,idx,it,s)).join('')}</div>`;
+    }).join('');
+  document.getElementById('page-date').scrollTo({top:0,behavior:'smooth'});
+}
+
+function backToList(){
+  document.getElementById('top-title').textContent='날짜별 아카이브';
+  renderDateList();
+}
+
+/* ── SEARCH ── */
+function doSearch(){
+  const q = document.getElementById('search-input').value.trim();
+  const wrap = document.getElementById('search-results');
+  const hint = `<div class="search-hint"><div class="search-hint-icon">${ICO.search}</div><div class="search-hint-text">검색어를 입력하세요<br>기사 제목, 요약, 메모를 통합 검색합니다</div></div>`;
+  if(!q){wrap.innerHTML=hint;return;}
+  const memos = getMemos();
+  const results = [];
+  // daily archive
+  Object.keys(getArchive()).sort((a,b)=>b.localeCompare(a)).forEach(dateStr=>{
+    const data = getArchive()[dateStr];
+    DAILY_ORDER.forEach(key=>{
+      ((data.sections&&data.sections[key])||[]).forEach((it,idx)=>{
+        const aKey=articleKey(dateStr,key,idx), memo=memos[aKey]||'';
+        if([it.title,it.summary,it.source,memo].join(' ').toLowerCase().includes(q.toLowerCase()))
+          results.push({dateStr,key,idx,it,memo,isWeekly:false});
+      });
+    });
+  });
+  // weekly archive
+  Object.keys(getWeeklyArchive()).sort((a,b)=>b.localeCompare(a)).forEach(wk=>{
+    const data = getWeeklyArchive()[wk];
+    WEEKLY_ORDER.forEach(key=>{
+      ((data.sections&&data.sections[key])||[]).forEach((it,idx)=>{
+        const aKey=articleKey('w_'+wk,key,idx), memo=memos[aKey]||'';
+        if([it.title,it.summary,it.source,memo].join(' ').toLowerCase().includes(q.toLowerCase()))
+          results.push({dateStr:'w_'+wk,key,idx,it,memo,isWeekly:true,wk});
+      });
+    });
+  });
+  if(!results.length){wrap.innerHTML=`<div class="search-hint"><div class="search-hint-icon">${ICO.search}</div><div class="search-hint-text">"${escHtml(q)}"에 해당하는 기사가 없어요</div></div>`;return;}
+  const hl = txt=>escHtml(txt).replace(new RegExp(escRegex(q),'gi'),m=>`<span class="highlight">${m}</span>`);
+  const grouped = {};
+  results.forEach(r=>{ const lbl=r.isWeekly?(getWeeklyArchive()[r.wk]?.weekLabel||r.wk):r.dateStr; if(!grouped[lbl])grouped[lbl]=[]; grouped[lbl].push(r); });
+  wrap.innerHTML = `<div class="search-count">검색 결과 ${results.length}건</div>` +
+    Object.keys(grouped).map(lbl=>{
+      return `<div class="search-date-label">${lbl}</div>` +
+        grouped[lbl].map(({dateStr,key,it,memo,isWeekly})=>{
+          const s = isWeekly ? WEEKLY_SEC[key] : DAILY_SEC[key];
+          const memoHtml = memo ? `<div class="memo-display" style="margin-top:7px;">${hl(memo)}</div>` : '';
+          return `<div class="news-card${key==='HBR인사이트'?' hbr':''}">
+            <div class="news-top"><span class="news-dot" style="background:${s.color};"></span><span class="news-title">${hl(it.title||'')}</span></div>
+            <p class="news-summary">${hl(it.summary||'')}</p>
+            <div class="news-footer"><span class="news-source">${escHtml(it.source||'')}</span>
+              <div class="footer-actions"><span class="search-result-tag" style="background:${s.bg};color:${s.color};">${s.label}</span>
+              ${it.url?`<a class="news-link" href="${it.url}" target="_blank">원문${ICO.link}</a>`:''}</div>
+            </div>${memoHtml}
+          </div>`;
+        }).join('');
+    }).join('');
+}
+function clearSearch(){ document.getElementById('search-input').value=''; doSearch(); }
+
+/* ── SETTINGS ── */
+function saveKey(){
+  const k=document.getElementById('api-key-input').value.trim();
+  if(!k.startsWith('sk-ant')){alert('올바른 Anthropic API 키를 입력해주세요 (sk-ant-로 시작).');return;}
+  localStorage.setItem('hr_api_key',k); showToday('empty');
+}
+function saveKeyModal(){
+  const k=document.getElementById('modal-api-input').value.trim();
+  if(!k.startsWith('sk-ant')){alert('올바른 Anthropic API 키를 입력해주세요 (sk-ant-로 시작).');return;}
+  localStorage.setItem('hr_api_key',k);
+  document.getElementById('settings-modal').classList.add('hidden');
+}
+function openSettings(){
+  document.getElementById('modal-api-input').value=localStorage.getItem('hr_api_key')||'';
+  document.getElementById('settings-modal').classList.remove('hidden');
+}
+
+/* ── UTILS ── */
+const escHtml = s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const escAttr = s=>String(s).replace(/'/g,'&#39;').replace(/\n/g,'\\n');
+const escRegex = s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+
+/* ── SPLASH ── */
+(function(){
+  const s=document.getElementById('splash');
+  setTimeout(()=>{s.classList.add('fade-out');setTimeout(()=>s.remove(),400);},1500);
+})();
+
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+init();
+</script>
+</body>
+</html>
