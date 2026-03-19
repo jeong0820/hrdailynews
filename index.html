@@ -20,7 +20,7 @@
 
     .top-bar{background:var(--navy);padding-top:env(safe-area-inset-top,0);flex-shrink:0;z-index:20;position:sticky;top:0;}
     .top-inner{padding:.9rem 1rem .75rem;min-height:62px;display:flex;align-items:center;}
-    .top-row{display:flex;align-items:center;gap:.5rem;flex:1;}
+    .top-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem;}
     /* inline search — 검색 제목 옆 */
     .inline-search{flex:1;margin-left:.5rem;}
     .inline-search .search-bar{display:flex;align-items:center;background:rgba(255,255,255,.12);border-radius:10px;padding:6px 10px;gap:7px;}
@@ -211,7 +211,7 @@
         </div>
       </div>
       <!-- 오른쪽 버튼 그룹 — 항상 오른쪽 정렬 -->
-      <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;margin-left:auto;">
+      <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
         <!-- 설정·뉴스받기 — 어제 탭만 표시 -->
         <div id="top-actions" class="hidden" style="display:flex;align-items:center;gap:5px;">
           <button class="icon-btn" onclick="openSettings()">
