@@ -35,6 +35,9 @@
     .top-actions{display:flex;gap:5px;align-items:center;}
     .icon-btn{background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.7);width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;}
     .icon-btn:active{opacity:.6;}
+    .sync-btn{flex-shrink:0;}
+    .sync-btn.spinning svg{animation:spin .8s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg)}}
     .icon-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
     .refresh-btn{background:rgba(255,255,255,.15);border:none;color:white;padding:6px 13px;border-radius:18px;font-size:12px;cursor:pointer;white-space:nowrap;font-family:inherit;font-weight:500;}
     .refresh-btn:active{opacity:.6;}
@@ -213,6 +216,10 @@
         </button>
         <button class="refresh-btn" id="refresh-btn" onclick="fetchNews()">뉴스 받기</button>
       </div>
+      <!-- 동기화 새로고침 버튼 — 모든 탭에서 항상 표시 -->
+      <button class="icon-btn sync-btn" id="sync-btn" onclick="syncRefresh()" title="타 기기 동기화">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      </button>
     </div>
   </div>
 </div>
@@ -658,6 +665,8 @@ function switchPage(page){
   const isToday  = page==='today';
   document.getElementById('inline-search').classList.toggle('hidden', !isSearch);
   document.getElementById('top-actions').classList.toggle('vis-hidden', !isToday);
+  // sync-btn은 모든 탭에서 항상 표시
+  document.getElementById('sync-btn').classList.remove('vis-hidden');
   const titles = {
     today:  yesterdayLabel,
     weekly: '주간 HR 인사이트',
@@ -777,6 +786,7 @@ function saveMemo(aKey){
     `<div class="memo-display">${escHtml(val)}</div><button class="memo-edit-btn" onclick="editMemo('${aKey}','${escAttr(val)}')">수정</button>`;
   const btn = document.querySelector(`#card-${aKey} .memo-toggle`);
   if(btn){btn.classList.add('has-memo');btn.querySelector('svg').style.stroke='#f59e0b';}
+  autoSyncToGist();
 }
 function editMemo(aKey,cur){
   document.getElementById('memo-area-'+aKey).innerHTML =
@@ -972,6 +982,7 @@ function doReclassify(targetSec, targetType){
   }
   // 3탭 동기화: 현재 페이지에 관계없이 모든 관련 뷰 갱신
   _syncAfterReclassify(dateStr, isWeekly, targetIsWeekly);
+  autoSyncToGist();
   closeReclassify();
 }
 async function fetchNews(){
@@ -1516,6 +1527,33 @@ const _origSaveMemos = saveMemos;
 // 뉴스 받기 완료 후 자동 업로드 (fetchNews 완료 시점에 호출)
 function autoSyncToGist(){
   if(getGistToken()) syncToGist().catch(()=>{});
+}
+
+/* ── SYNC REFRESH ── */
+async function syncRefresh(){
+  const token = getGistToken();
+  if(!token){
+    // Token 없으면 안내
+    setGistStatus('⚙ 설정에서 GitHub Token을 먼저 등록해주세요.', '#d97706');
+    openSettings();
+    return;
+  }
+  const btn = document.getElementById('sync-btn');
+  btn.classList.add('spinning');
+  btn.disabled = true;
+  try{
+    await syncFromGist();
+    // 현재 탭 뷰 갱신
+    const arch = getArchive();
+    if(arch[todayKey] && currentPage==='today') renderToday(arch[todayKey]);
+    const wa = getWeeklyArchive();
+    if(wa[weekKey] && currentPage==='weekly') renderWeekly(wa[weekKey]);
+    if(currentPage==='date') renderDateList();
+    if(currentPage==='topic') renderTopicList();
+  }finally{
+    btn.classList.remove('spinning');
+    btn.disabled = false;
+  }
 }
 
 /* ── UTILS ── */
