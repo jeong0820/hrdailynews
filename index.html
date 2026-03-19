@@ -114,6 +114,8 @@
 
     /* loading */
     .loading-wrap{text-align:center;padding:3rem 1rem;}
+    .loading-spinner{width:32px;height:32px;border:3px solid rgba(0,0,0,.08);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 1rem;}
+    @keyframes spin{to{transform:rotate(360deg)}}
     .spinner{width:30px;height:30px;border:3px solid rgba(0,0,0,.07);border-top-color:var(--navy);border-radius:50%;animation:spin .75s linear infinite;margin:0 auto .875rem;}
     @keyframes spin{to{transform:rotate(360deg);}}
     .loading-text{font-size:13px;color:var(--muted);margin-bottom:3px;}
@@ -249,6 +251,13 @@
 
 <!-- PAGE: 주간 -->
 <div class="page hidden" id="page-weekly">
+  <div id="weekly-loading" class="hidden">
+    <div class="loading-wrap">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">주간 트렌드를 분석하는 중...</div>
+      <div class="loading-sub">8개 섹션 분류 중 · 잠시 기다려주세요</div>
+    </div>
+  </div>
   <div id="weekly-empty">
     <div class="empty-wrap">
       <div class="empty-icon-box"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
@@ -512,14 +521,19 @@ const SYS_WEEKLY = `당신은 대기업 HR 담당자를 위한 전문 뉴스 큐
 채용: 채용 시장 트렌드, 수시채용 확대, AI 면접 도입 흐름, 직무 중심 채용 변화.
 인재개발·조직문화·리더십: 조직문화·직원경험·리스킬링·코칭·일하는 방식 트렌드.
 HR테크: HRMS·피플애널리틱스·AI 인사관리 트렌드, HR 소프트웨어 동향.
-글로벌 HR: 글로벌 HR 트렌드, 해외 노동시장 변화, 다국적 기업 HR 사례.
+글로벌 HR: 한국 기업의 해외법인 인력운영·현지 노동법·외국인 고용허가·주재원 파견·보상 실무 이슈. 반드시 해외법인 또는 외국인 고용과 직접 관련된 기사만 포함. 단순 글로벌 트렌드나 해외 기업 사례는 HR인사이트 섹션으로.
+HR인사이트: SHRM·HR Dive·HR Executive 등 글로벌 HR 전문 매체의 트렌드·연구·칼럼. 제목은 영문 원제 유지, 요약은 한국어로 작성.
 
 
 ${EXCLUDE_RULES}
 섹션당 최대 3건, 유사 주제 중복 금지.
-기사 선정 원칙: 관련 기사가 조금이라도 있으면 반드시 최소 1건은 선정할 것. 완벽한 트렌드 기사가 없더라도 섹션 주제와 가장 가까운 기사를 선택하는 것이 빈 섹션으로 두는 것보다 낫다.
-단, 수집된 기사 전체를 검토해도 해당 섹션과 전혀 관련 없는 경우에만 빈 배열로 둘 것.
-URL은 원본 그대로.`
+기사 선정 원칙 (엄격히 적용):
+- 수집된 기사 중 섹션 주제와 조금이라도 관련 있는 기사가 있으면 반드시 최소 1건 이상 선정할 것
+- 이상적인 트렌드 기사가 없더라도 가장 가까운 기사를 선택하는 것이 빈 섹션보다 낫다
+- 빈 배열은 수집된 기사 전체를 검토해도 해당 섹션과 전혀 관련 없을 때만 허용
+- 글로벌HR 섹션: 해외법인·외국인고용·주재원 관련 기사가 없으면 빈 배열 허용 (억지로 채우지 말 것)
+- HR인사이트 섹션: [G-] 태그 기사(영문)가 있으면 반드시 최소 1건 선정
+섹션당 최대 3건, 유사 주제 중복 금지. URL은 원본 그대로.`
 
 /* ── STATE ── */
 let currentPage = 'today';
@@ -643,6 +657,7 @@ function renderWeekly(data){
     wrap.appendChild(block);
   });
 
+  document.getElementById('weekly-loading').classList.add('hidden');
   document.getElementById('weekly-empty').classList.add('hidden');
   wrap.classList.remove('hidden');
 }
@@ -906,7 +921,7 @@ async function fetchNews(){
       '노조','노동조합','파업','단체협약','노사','산업안전','중대재해',
       '근로계약','취업규칙','징계','해고','부당해고',
       /* 글로벌 */
-      '외국인근로자','비자','고용허가','해외법인','글로벌HR',
+      '외국인근로자','외국인 근로자','비자','고용허가','고용허가제','해외법인','해외 법인','글로벌HR','주재원','파견','현지 노동','현지법인','해외 인력','외국인 채용','E-7','E-9','H-2',
     ];
     const hrFiltered = allArticles.filter(a => {
       const text = (a.title + ' ' + a.description).toLowerCase();
@@ -953,10 +968,24 @@ async function fetchNews(){
     /* 4. Claude — 주간 (Weekly) */
     const weeklyArchive = getWeeklyArchive();
     if(!weeklyArchive[weekKey] || isMonday){
+      // 주간 로딩 화면 표시
+      document.getElementById('weekly-loading').classList.remove('hidden');
+      document.getElementById('weekly-empty').classList.add('hidden');
+      document.getElementById('weekly-news').classList.add('hidden');
       const weekLabel = getWeekLabel();
       const weeklyResp = await callClaude(anthropicKey, SYS_WEEKLY,
         `이번 주(${weekLabel}) HR 트렌드·인사이트 분석\n\n아래 기사 중 중장기 트렌드·인사이트 성격의 기사를 8개 섹션으로 분류·요약해주세요.\n\n${articleList}${globalList}`);
       const weeklyParsed = JSON.parse(weeklyResp.replace(/\`\`\`json\s*/g,'').replace(/\`\`\`\s*/g,'').trim());
+      // 빈 섹션 안전망 — 글로벌HR 제외한 섹션에 기사가 없으면 articleList에서 최대한 채우기
+      if(!weeklyParsed.sections) weeklyParsed.sections = {};
+      WEEKLY_ORDER.forEach(key=>{
+        if(key === '글로벌HR') return; // 글로벌HR은 빈 배열 허용
+        if(!(weeklyParsed.sections[key]||[]).length){
+          // 해당 키워드로 articlesToUse에서 첫 번째 기사 강제 삽입
+          const fallback = articlesToUse.find(a=>a.title && !Object.values(weeklyParsed.sections).flat().some(x=>x.url===a.url));
+          if(fallback) weeklyParsed.sections[key] = [{title:fallback.title, summary:fallback.description?.slice(0,120)||'', source:fallback.source?.name||'', url:fallback.url}];
+        }
+      });
       weeklyArchive[weekKey] = {...weeklyParsed, fetchedAt, weekLabel};
       saveWeeklyArchive(weeklyArchive);
       renderWeekly(weeklyArchive[weekKey]);
