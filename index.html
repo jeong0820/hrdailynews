@@ -94,6 +94,8 @@
     .news-link svg{width:11px;height:11px;stroke:#2563eb;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
     .memo-toggle{background:none;border:none;cursor:pointer;padding:2px 3px;display:flex;align-items:center;}
     .move-btn{background:none;border:none;cursor:pointer;padding:2px 3px;display:flex;align-items:center;}
+    .del-btn{background:none;border:none;cursor:pointer;padding:2px 3px;display:flex;align-items:center;}
+    .del-btn:hover svg{stroke:#ef4444;}
     .memo-toggle svg{width:15px;height:15px;stroke:#9ca3af;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
     .memo-toggle.has-memo svg{stroke:#f59e0b;}
     .memo-area{margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
@@ -314,6 +316,22 @@
   </button>
 </nav>
 
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-overlay hidden" id="delete-modal" onclick="if(event.target===this)closeDeleteConfirm()">
+  <div class="modal-sheet" onclick="event.stopPropagation()" style="text-align:center;">
+    <div class="modal-handle"></div>
+    <div style="width:44px;height:44px;background:#fef2f2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#ef4444" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14a2,2 0 0 1-2,2H8a2,2 0 0 1-2-2L5,6"/><path d="M10,11v6"/><path d="M14,11v6"/><path d="M9,6V4a1,1 0 0 1,1-1h4a1,1 0 0 1,1,1v2"/></svg>
+    </div>
+    <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px;">기사를 삭제하시겠습니까?</div>
+    <div id="delete-article-title" style="font-size:11px;color:var(--muted);margin-bottom:20px;line-height:1.5;background:#f9fafb;padding:8px 10px;border-radius:8px;text-align:left;"></div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="closeDeleteConfirm()" style="flex:1;padding:11px;border-radius:12px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;">아니오</button>
+      <button onclick="confirmDelete()" style="flex:1;padding:11px;border-radius:12px;border:none;background:#ef4444;color:white;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;">예, 삭제</button>
+    </div>
+  </div>
+</div>
+
 <!-- RECLASSIFY MODAL -->
 <div class="modal-overlay hidden" id="reclassify-modal" onclick="if(event.target===this)closeReclassify()">
   <div class="modal-sheet" onclick="event.stopPropagation()">
@@ -487,33 +505,28 @@ const EXCLUDE_RULES = `
 - 기업 홍보성 보도자료 — MOU 체결, 솔루션 도입, 파트너십 발표
 - 단순 인사발령·임원 선임 공지 (예: "○○사, 신임 대표이사에 ○○○ 선임", "○○ 전무 부사장 승진", "○○ 국장 발령")
 - 특정 개인의 임원 발령·승진·대표 선임·회장·부회장·전무·상무·이사·국장급 인사 관련 보도
-- 특정 기업 복지 자랑성 기사
+- 특정 기업 복지 자랑성 기사 — 단, HR 선도 대기업(삼성전자·SK하이닉스·LG전자·LG에너지솔루션·현대차·기아·HD현대·카카오·네이버·쿠팡·배달의민족·토스·SKT·KT·LGU+·KB국민은행·신한은행·하나은행·롯데·신세계·CJ·넥슨·넷마블·크래프톤 등)이 업계 최초로 도입하거나 업계 표준이 될 만한 인사제도 변화는 포함 가능
 - 특정 기업·업종의 자체적인 근무제도 도입 사례 (예: "○○은행 주 4.9일제 도입", "○○기업 유연근무 확대") — 정부 정책이 아닌 기업 자체 결정이면 제외`;
 
 const SYS_DAILY = `당신은 대기업 HR 담당자를 위한 전문 뉴스 큐레이터입니다.
-어제 하루 보도된 기사 중 HR 담당자가 지금 당장 알아야 할 시급한 기사를 8개 섹션으로 분류·요약하세요.
+어제 하루 보도된 기사 중 고용정책·정부동향 관련 시급한 기사만 선정해 요약하세요.
 코드블록, 마크다운, 설명 없이 순수 JSON만 출력하세요:
-{"date":"날짜","sections":{"고용정책":[{"title":"제목","summary":"2-3문장 요약","source":"출처","url":"URL"}],"보상급여":[...],"성과관리":[...],"채용":[...],"인재개발":[...],"HR테크":[...],"글로벌HR":[...],"HR인사이트":[{"title":"영문 원제","summary":"한국어 2-3문장 요약","source":"출처","url":"URL"}]}}
+{"date":"날짜","sections":{"고용정책":[{"title":"제목","summary":"2-3문장 요약","source":"출처","url":"URL"}]}}
 
-[어제 탭 선정 기준 — "시급성"]
-다음 조건 중 하나라도 해당하면 선택:
-- 오늘 또는 어제 발표·시행된 정부 정책, 법령 개정, 행정예고
-- HR 담당자가 이번 주 내로 대응 조치를 취해야 하는 내용
-- 대법원·헌재 노동 판결, 국회 통과 법안
-- 채용 공고 마감·전형 일정 등 즉각 확인이 필요한 정보
+[선정 기준 — 아래 조건 중 하나 이상 해당해야 선택]
+- 고용노동부·기재부·국회·중앙부처가 주체인 정책 발표·법령 개정·행정예고·고시
+- 대법원·헌법재판소 노동 관련 판결
+- 국회 본회의·상임위 통과 법안
+- HR 담당자가 이번 주 내로 즉각 대응 조치를 취해야 하는 정부·법령 관련 사항
 
-[섹션별 포함 기준]
-고용정책/정부동향: 중앙부처(고용노동부·기재부·국회 등) 정책·법령. 기업 자체 제도 변화는 제외.
-보상/급여: 최저임금 고시·통상임금 판결·임금체계 개편 시행 등 즉각 적용 필요 사항.
-성과관리·평가: 성과평가 제도 법령화, 정부 가이드라인 발표 등 시급한 변화.
-채용: 채용 관련 법령 변경, 대규모 채용 일정 공고 등 즉각 확인 필요 사항.
-인재개발·조직문화·리더십: 교육 의무화, 직장 내 괴롭힘·안전 관련 시행 등.
-HR테크: 인사 시스템 관련 법적 의무 변경, 데이터 보호 규정 시행 등.
-글로벌 HR: 외국인 고용 비자 정책 변경, 해외 법인 노동법 시행 등.
-
+[반드시 제외]
+- 기업이 자체적으로 도입한 제도 — 단, 삼성전자·SK하이닉스·LG전자·LG에너지솔루션·현대차·기아·HD현대·카카오·네이버·쿠팡·배달의민족·토스·SKT·KT·LGU+·KB국민은행·신한은행·하나은행·롯데·신세계·CJ·넥슨·넷마블·크래프톤 등 HR 선도 대기업의 새로운 인사제도 도입은 주간 탭 대상이므로 어제 탭에서는 제외
+- 개별 기업·업종 트렌드 보도 (정부 정책이 아닌 것) — 단, 선도 대기업 인사제도 변화는 주간 탭으로
+- 개별 기업 채용 일정·공고
+- 지역 지청·고용센터 설명회·간담회
 
 ${EXCLUDE_RULES}
-섹션당 최대 3건. 시급성 없는 기사는 제외. 기사가 없는 섹션은 빈 배열. URL은 원본 그대로.`;
+최대 3건. 해당 기사가 없으면 빈 배열. URL은 원본 그대로.`;
 
 const SYS_WEEKLY = `당신은 대기업 HR 담당자를 위한 전문 뉴스 큐레이터입니다.
 수집된 기사 중 이번 주 HR 업계의 주요 트렌드·인사이트를 8개 섹션으로 분류·요약하세요.
@@ -525,16 +538,18 @@ const SYS_WEEKLY = `당신은 대기업 HR 담당자를 위한 전문 뉴스 큐
 - 단기 대응보다 중장기적으로 HR 전략에 영향을 미치는 산업 트렌드
 - 연구·조사 결과, 전문가 칼럼, 해외 사례 분석
 - 기업들의 제도 변화 확산 동향 (개별 기업 사례 아닌 업계 전반 흐름)
+- M&A·기업합병 관련 HR PMI·조직통합 사례 (보상·평가·조직문화·HR시스템 통합 등)
+- HR 선도 대기업(삼성전자·SK하이닉스·LG전자·LG에너지솔루션·현대차·기아·HD현대·카카오·네이버·쿠팡·배달의민족·토스·SKT·KT·LGU+·KB국민은행·신한은행·하나은행·롯데·신세계·CJ·넥슨·넷마블·크래프톤 등)의 새로운 인사제도 도입 — 업계 전반으로 영향을 미칠 수 있는 변화
 - HBR·DBR 등 전문 매거진의 인사이트
 
 [섹션별 포함 기준]
 고용정책/정부동향: 정책 방향·입법 예고·중장기 고용 대책 등 향후 변화 예고.
-보상/급여: 임금 트렌드, 보상 체계 변화 흐름, 성과급 제도 변화 분석.
-성과관리·평가: 성과평가 방식 트렌드, OKR·KPI 운영 사례, 평가 피드백 문화.
-채용: 채용 시장 트렌드, 수시채용 확대, AI 면접 도입 흐름, 직무 중심 채용 변화.
-인재개발·조직문화·리더십: 조직문화·직원경험·리스킬링·코칭·일하는 방식 트렌드.
-HR테크: HRMS·피플애널리틱스·AI 인사관리 트렌드, HR 소프트웨어 동향.
-글로벌 HR: 한국 기업의 해외법인 인력운영·현지 노동법·외국인 고용허가·주재원 파견·보상 실무 이슈. 반드시 해외법인 또는 외국인 고용과 직접 관련된 기사만 포함. 단순 글로벌 트렌드나 해외 기업 사례는 HR인사이트 섹션으로.
+보상/급여: 임금 트렌드, 보상 체계 변화 흐름, 성과급 제도 변화 분석. M&A·합병 후 보상체계·연봉·성과급 통합 사례도 포함.
+성과관리·평가: 성과평가 방식 트렌드, OKR·KPI 운영 사례, 평가 피드백 문화. M&A 후 성과평가 기준 통합·KPI 재설계 사례도 포함.
+채용: 채용 시장 트렌드, 수시채용 확대, AI 면접 도입 흐름, 직무 중심 채용 변화, 신규 채용 프로세스·방식 변화, 채용 플랫폼 동향, 채용 트렌드 연구·조사. 반드시 채용 프로세스·방식·시장 자체에 관한 내용이어야 함. 단순 기업 채용 공고나 채용 인원 발표는 제외.
+인재개발·조직문화·리더십: 조직문화·직원경험·리스킬링·코칭·일하는 방식 트렌드. M&A·PMI 과정의 조직문화 통합 전략·인재 유지(Retention) 방안·리더십 재편 사례도 포함. 삼성전자·SK하이닉스·LG전자·LG에너지솔루션·현대차·기아·HD현대·카카오·네이버·쿠팡·배달의민족·토스·SKT·KT·LGU+·KB국민은행·신한은행·하나은행·롯데·신세계·CJ·넥슨·넷마블·크래프톤 등 HR 선도 대기업의 새로운 인사제도(성과평가 개편·직급 체계 변경·유연근무 확대·조직 개편 등) 도입도 포함.
+HR테크: HRMS·피플애널리틱스·AI 인사관리 트렌드, HR 소프트웨어 동향. M&A 후 HR 시스템 통합·HRMS 마이그레이션 사례도 포함.
+글로벌 HR: 한국 기업의 해외법인 인력운영·현지 노동법·외국인 고용허가·주재원 파견·보상 실무 이슈. 해외 기업 인수 후 현지 인력 통합·노동법 적용 이슈도 포함. 반드시 해외법인 또는 외국인 고용과 직접 관련된 기사만 포함. 단순 글로벌 트렌드나 해외 기업 사례는 HR인사이트 섹션으로.
 HR인사이트: SHRM·HR Dive·HR Executive 등 글로벌 HR 전문 매체의 트렌드·연구·칼럼. 제목은 영문 원제 유지, 요약은 한국어로 작성.
 
 
@@ -692,6 +707,10 @@ function newsCardHTML(dateStr, secKey, idx, it, s){
   _rcStore[rcKey] = {aKey, title: it.title||'', dateStr, secKey, isWeekly};
   // 어제 탭(today page에서 렌더)은 이동 버튼 숨김
   const showMove = !(currentPage==='today' && !isWeekly && dateStr===todayKey);
+  // 삭제 버튼
+  const delKey = 'del_'+aKey;
+  _rcStore[delKey] = {aKey, dateStr, secKey, isWeekly};
+  const deleteBtn = `<button class="del-btn" onclick="openDeleteConfirm('${delKey}')" title="기사 삭제"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#9ca3af" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14a2,2 0 0 1-2,2H8a2,2 0 0 1-2-2L5,6"/><path d="M10,11v6"/><path d="M14,11v6"/><path d="M9,6V4a1,1 0 0 1,1-1h4a1,1 0 0 1,1,1v2"/></svg></button>`;
   const moveBtn = showMove ? `<button class="move-btn" onclick="openReclassify('${rcKey}')" title="섹션 이동"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#9ca3af" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="17,1 21,5 17,9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7,23 3,19 7,15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></button>` : '';
   const memoSection = hasMemo
     ? `<div class="memo-area" id="memo-area-${aKey}"><div class="memo-display">${escHtml(memo)}</div><button class="memo-edit-btn" onclick="editMemo('${aKey}','${escAttr(memo)}')">수정</button></div>`
@@ -704,7 +723,7 @@ function newsCardHTML(dateStr, secKey, idx, it, s){
     <p class="news-summary">${escHtml(it.summary||'')}</p>
     <div class="news-footer">
       <span class="news-source${isHBR?' hbr-src':''}">${escHtml(it.source||'')}</span>
-      <div class="footer-actions">${linkHtml}${moveBtn}${memoBtn}</div>
+      <div class="footer-actions">${linkHtml}${moveBtn}${deleteBtn}${memoBtn}</div>
     </div>
     ${memoSection}
   </div>`;
@@ -780,6 +799,59 @@ function openReclassify(storeKey){
     makeBtn(key, s, key===ctx.secKey, 'weekly');
   });
   document.getElementById('reclassify-modal').classList.remove('hidden');
+}
+
+/* ── DELETE ARTICLE ── */
+let _deleteCtx = null;
+
+function openDeleteConfirm(storeKey){
+  const ctx = _rcStore[storeKey];
+  if(!ctx) return;
+  _deleteCtx = ctx;
+  document.getElementById('delete-article-title').textContent = ctx.title || '';
+  document.getElementById('delete-modal').classList.remove('hidden');
+}
+
+function closeDeleteConfirm(){
+  document.getElementById('delete-modal').classList.add('hidden');
+  _deleteCtx = null;
+}
+
+function confirmDelete(){
+  if(!_deleteCtx) return;
+  const {aKey, dateStr, secKey, isWeekly} = _deleteCtx;
+
+  if(isWeekly){
+    const wk = dateStr.replace('w_','');
+    const wa = getWeeklyArchive();
+    const data = wa[wk];
+    if(data){
+      const idx = parseInt(aKey.split('_').pop());
+      const items = data.sections[secKey]||[];
+      data.sections[secKey] = items.filter((_,i)=>i!==idx);
+      saveWeeklyArchive(wa);
+      renderWeekly(data);
+    }
+  } else {
+    const a = getArchive();
+    const data = a[dateStr];
+    if(data){
+      const idx = parseInt(aKey.split('_').pop());
+      const items = data.sections[secKey]||[];
+      data.sections[secKey] = items.filter((_,i)=>i!==idx);
+      saveArchive(a);
+      if(currentPage==='today' && dateStr===todayKey) renderToday(data);
+      else if(currentPage==='date') showDateDetail(dateStr);
+    }
+  }
+  // 메모도 함께 삭제
+  const memos = getMemos();
+  delete memos[aKey];
+  saveMemos(memos);
+
+  _syncAfterReclassify(dateStr, isWeekly, isWeekly);
+  closeDeleteConfirm();
+  autoSyncToGist();
 }
 
 /* 3탭 동기화 — 주간/날짜별/주제별 탭의 뷰를 항상 최신 아카이브 기준으로 갱신 */
@@ -930,6 +1002,8 @@ async function fetchNews(){
       '교육','연수','HRD','리스킬링','업스킬링','역량','훈련','학습',
       /* HR 테크 */
       'HRMS','HCM','ATS','피플애널리틱스','HR테크','인사시스템',
+      /* M&A·PMI */
+      'M&A','PMI','인수합병','기업인수','조직통합','합병','인수 후','HR PMI','공정위 승인','기업결합',
       /* 노사·법령 */
       '노조','노동조합','파업','단체협약','노사','산업안전','중대재해',
       '근로계약','취업규칙','징계','해고','부당해고',
@@ -977,7 +1051,7 @@ async function fetchNews(){
     /* 3. Claude — 오늘 (Daily) */
     const yesterdayStr = yesterday.toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
     const dailyResp = await callClaude(anthropicKey, SYS_DAILY,
-      `어제 날짜: ${yesterdayStr}\n\n아래 기사 중 HR 담당자가 지금 당장 알아야 할 시급한 고용정책 기사만 선정해 요약해주세요.\n\n${articleList}\n\n출처 우선순위: 고용노동부·연합뉴스·한국경제·매일경제·조선일보·중앙일보·동아일보·서울경제 우선.`);
+      `어제 날짜: ${yesterdayStr}\n\n아래 기사 중 고용정책·정부동향 관련 시급한 기사만 최대 3건 선정해 요약해주세요. 정부·국회·법원이 주체가 아닌 기사는 모두 제외하세요.\n\n${articleList}\n\n출처 우선순위: 고용노동부·연합뉴스·한국경제·매일경제·조선일보·중앙일보·동아일보·서울경제 우선.`);
     const dailyParsed = JSON.parse(dailyResp.replace(/\`\`\`json\s*/g,'').replace(/\`\`\`\s*/g,'').trim());
     const fetchedAt = new Date().toISOString();
     archive[todayKey] = {...dailyParsed, fetchedAt};
@@ -1000,6 +1074,7 @@ async function fetchNews(){
       if(!weeklyParsed.sections) weeklyParsed.sections = {};
       WEEKLY_ORDER.forEach(key=>{
         if(key === '글로벌HR') return; // 글로벌HR은 빈 배열 허용
+        if(key === '채용') return; // 채용도 빈 배열 허용
         if(!(weeklyParsed.sections[key]||[]).length){
           // 해당 키워드로 articlesToUse에서 첫 번째 기사 강제 삽입
           const fallback = articlesToUse.find(a=>a.title && !Object.values(weeklyParsed.sections).flat().some(x=>x.url===a.url));
