@@ -213,7 +213,7 @@
       <!-- 오른쪽 버튼 그룹 — 항상 오른쪽 정렬 -->
       <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;margin-left:auto;">
         <!-- 설정·뉴스받기 — 어제 탭만 표시 -->
-        <div id="top-actions" class="vis-hidden" style="display:flex;align-items:center;gap:5px;">
+        <div id="top-actions" class="hidden" style="display:flex;align-items:center;gap:5px;">
           <button class="icon-btn" onclick="openSettings()">
             <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
@@ -668,7 +668,8 @@ function switchPage(page){
   const isSearch = page==='search';
   const isToday  = page==='today';
   document.getElementById('inline-search').classList.toggle('hidden', !isSearch);
-  document.getElementById('top-actions').classList.toggle('vis-hidden', !isToday);
+  const ta = document.getElementById('top-actions');
+  if(isToday){ ta.classList.remove('hidden'); } else { ta.classList.add('hidden'); }
 
   const titles = {
     today:  yesterdayLabel,
