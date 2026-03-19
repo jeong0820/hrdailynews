@@ -133,6 +133,8 @@
 
     /* loading */
     .loading-wrap{text-align:center;padding:3rem 1rem;}
+    .add-url-tab{flex:1;padding:7px;border-radius:9px;border:1.5px solid var(--border);background:white;color:var(--muted);font-size:12px;font-weight:500;font-family:inherit;cursor:pointer;}
+    .add-url-tab.active{background:#0f1623;color:white;border-color:#0f1623;}
     .loading-spinner{width:32px;height:32px;border:3px solid rgba(0,0,0,.08);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 1rem;}
     @keyframes spin{to{transform:rotate(360deg)}}
     .spinner{width:30px;height:30px;border:3px solid rgba(0,0,0,.07);border-top-color:var(--navy);border-radius:50%;animation:spin .75s linear infinite;margin:0 auto .875rem;}
@@ -238,6 +240,10 @@
           </button>
           <button class="refresh-btn" id="refresh-btn" onclick="fetchNews()">뉴스 받기</button>
         </div>
+        <!-- URL 추가 버튼 — 어제/주간 탭에서만 표시 -->
+        <button class="icon-btn hidden" id="add-url-btn" onclick="openAddUrl()" title="URL 직접 추가" style="flex-shrink:0;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
         <button class="icon-btn sync-btn" id="sync-btn" onclick="syncRefresh()" title="타 기기 동기화">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
@@ -379,6 +385,52 @@
     <button class="modal-close" onclick="closeReclassify()" style="margin-top:10px;">취소</button>
   </div>
 </div>
+<!-- ADD URL MODAL -->
+<div class="modal-overlay hidden" id="add-url-modal" onclick="if(event.target===this)closeAddUrl()">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">URL 직접 추가</div>
+
+    <!-- 탭 구분 -->
+    <div style="display:flex;gap:6px;margin-bottom:14px;">
+      <button id="add-url-tab-today" class="add-url-tab active" onclick="switchAddUrlTab('today')">어제 탭</button>
+      <button id="add-url-tab-weekly" class="add-url-tab" onclick="switchAddUrlTab('weekly')">주간 탭</button>
+    </div>
+
+    <!-- 주간탭 섹션 선택 -->
+    <div id="add-url-sec-wrap" class="hidden">
+      <div class="field-label">섹션 선택</div>
+      <select id="add-url-section" class="api-input" style="appearance:auto;">
+        <option value="고용정책">고용정책/정부동향</option>
+        <option value="보상급여">보상/급여</option>
+        <option value="성과관리">성과관리·평가</option>
+        <option value="채용">채용</option>
+        <option value="인재개발">인재개발·조직문화·리더십</option>
+        <option value="HR테크">HR테크</option>
+        <option value="글로벌HR">글로벌 HR</option>
+        <option value="HR인사이트">해외HR인사이트</option>
+      </select>
+    </div>
+
+    <div class="field-label">URL</div>
+    <input class="api-input" type="url" id="add-url-input" placeholder="https://...">
+
+    <!-- 미리보기 영역 -->
+    <div id="add-url-preview" class="hidden" style="margin:10px 0;background:#f9fafb;border-radius:10px;padding:10px 12px;border:1px solid var(--border);">
+      <div id="add-url-preview-title" style="font-size:13px;font-weight:600;color:#111;margin-bottom:4px;line-height:1.4;"></div>
+      <div id="add-url-preview-summary" style="font-size:11px;color:#6b7280;line-height:1.5;margin-bottom:4px;"></div>
+      <div id="add-url-preview-source" style="font-size:11px;color:#9ca3af;"></div>
+    </div>
+    <div id="add-url-status" style="font-size:11px;color:var(--muted);min-height:16px;margin-bottom:8px;"></div>
+
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <button class="save-btn" style="flex:1;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;" onclick="fetchUrlMeta()">🔍 내용 가져오기</button>
+      <button class="save-btn" style="flex:1;" id="add-url-confirm-btn" onclick="confirmAddUrl()" disabled>추가하기</button>
+    </div>
+    <button class="modal-close" onclick="closeAddUrl()">닫기</button>
+  </div>
+</div>
+
 <div class="modal-overlay hidden" id="settings-modal" onclick="if(event.target===this)this.classList.add('hidden')">
   <div class="modal-sheet" onclick="event.stopPropagation()">
     <div class="modal-handle"></div>
@@ -695,6 +747,9 @@ function switchPage(page){
   document.getElementById('inline-search').classList.toggle('hidden', !isSearch);
   const ta = document.getElementById('top-actions');
   if(isToday){ ta.classList.remove('hidden'); } else { ta.classList.add('hidden'); }
+  // + 버튼: 어제탭·주간탭에서만 표시
+  const addBtn = document.getElementById('add-url-btn');
+  if(addBtn){ addBtn.classList.toggle('hidden', page!=='today' && page!=='weekly'); }
 
   const titles = {
     today:  yesterdayLabel,
@@ -1050,10 +1105,10 @@ function _updateMemoIcon(cardId, list){
 }
 
 // 모든 ctx suffix 목록
-const _CTX_LIST = ['', '_dt', '_dw', '_tp'];
+const _CTX_LIST = ['', '_dt', '_dw', '_tp', '_sr'];
 // uid에서 ctx suffix 제거 → 실제 저장 aKey 반환
 function toRealAKey(uid){
-  return uid.replace(/_(dt|dw|tp)$/, '');
+  return uid.replace(/_(dt|dw|tp|sr)$/, '');
 }
 
 function _refreshAllUids(aKey, list){
@@ -1195,6 +1250,7 @@ function _doDeleteArticle(){
       saveArchive(a);
       if(currentPage==='today' && dateStr===todayKey) renderToday(data);
       else if(currentPage==='date') showDateDetail(dateStr);
+      else if(currentPage==='search'){ const q=document.getElementById('search-input')?.value.trim(); if(q) doSearch(); }
     }
   }
   // 메모도 함께 삭제
@@ -1232,6 +1288,11 @@ function _syncAfterReclassify(dateStr, wasWeekly, targetIsWeekly){
     } else {
       renderTopicList();
     }
+  }
+  // 검색 탭: 현재 검색어가 있으면 재검색
+  if(currentPage === 'search'){
+    const q = document.getElementById('search-input')?.value.trim();
+    if(q) doSearch();
   }
 }
 
@@ -1613,7 +1674,7 @@ function renderTopicList(){
     const memoUrlsSeen = new Set();
     let mc = 0;
     Object.keys(memos).forEach(k=>{
-      const baseKey = k.replace(/_(dt|dw|tp)$/, '');
+      const baseKey = k.replace(/_(dt|dw|tp|sr)$/, '');
       const p = baseKey.split('_');
       const kSecKey = p[p.length-2];
       if(kSecKey !== key) return;
@@ -1889,26 +1950,11 @@ function doSearch(){
   wrap.innerHTML = `<div class="search-count">검색 결과 ${results.length}건</div>` +
     Object.keys(grouped).map(lbl=>{
       return `<div class="search-date-label">${lbl}</div>` +
-        grouped[lbl].map(({dateStr,key,it,memoList,isWeekly})=>{
+        grouped[lbl].map(({dateStr,key,idx,it,isWeekly})=>{
           const s = (isWeekly ? WEEKLY_SEC : DAILY_SEC)[key] || WEEKLY_SEC[key] || DAILY_SEC[key];
           if(!s) return '';
-          // 메모 목록 렌더 — 키워드 매칭된 메모는 하이라이트
-          const memoHtml = memoList.length ? `<div style="margin-top:7px;display:flex;flex-direction:column;gap:4px;">` +
-            memoList.map(m=>{
-              const isMatch = m.text.toLowerCase().includes(ql);
-              return `<div class="memo-item" style="${isMatch?'border-color:#f59e0b;':''}">`+
-                `<div class="memo-item-header"><span class="memo-item-time">${fmtMemoTime(m.updatedAt)}</span></div>`+
-                `<div class="memo-item-text">${hl(m.text)}</div>`+
-                `</div>`;
-            }).join('')+`</div>` : '';
-          return `<div class="news-card">
-            <div class="news-top"><span class="news-dot" style="background:${s.color};"></span><span class="news-title">${hl(it.title||'')}</span></div>
-            <p class="news-summary">${hl(it.summary||'')}</p>
-            <div class="news-footer"><span class="news-source">${escHtml(it.source||'')}</span>
-              <div class="footer-actions"><span class="search-result-tag" style="background:${s.bg};color:${s.color};">${s.label}</span>
-              ${it.url?`<a class="news-link" href="${it.url}" target="_blank">원문${ICO.link}</a>`:''}</div>
-            </div>${memoHtml}
-          </div>`;
+          // newsCardHTML 재사용 — ctx='sr'로 고유 ID
+          return newsCardHTML(dateStr, key, idx, it, s, 'sr');
         }).join('');
     }).join('');
 }
@@ -2111,6 +2157,126 @@ const escRegex = s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
     }
   }, { passive: true });
 })();
+
+/* ── ADD URL ── */
+let _addUrlTab = 'today';
+let _addUrlMeta = null;
+
+function openAddUrl(){
+  _addUrlMeta = null;
+  _addUrlTab = currentPage === 'weekly' ? 'weekly' : 'today';
+  document.getElementById('add-url-input').value = '';
+  document.getElementById('add-url-status').textContent = '';
+  document.getElementById('add-url-preview').classList.add('hidden');
+  document.getElementById('add-url-confirm-btn').disabled = true;
+  switchAddUrlTab(_addUrlTab);
+  document.getElementById('add-url-modal').classList.remove('hidden');
+}
+
+function closeAddUrl(){
+  document.getElementById('add-url-modal').classList.add('hidden');
+}
+
+function switchAddUrlTab(tab){
+  _addUrlTab = tab;
+  document.getElementById('add-url-tab-today').classList.toggle('active', tab==='today');
+  document.getElementById('add-url-tab-weekly').classList.toggle('active', tab==='weekly');
+  document.getElementById('add-url-sec-wrap').classList.toggle('hidden', tab==='today');
+}
+
+async function fetchUrlMeta(){
+  const url = document.getElementById('add-url-input').value.trim();
+  if(!url){ document.getElementById('add-url-status').textContent = 'URL을 입력해주세요.'; return; }
+  const apiKey = localStorage.getItem('hr_api_key');
+  if(!apiKey){ document.getElementById('add-url-status').textContent = 'Anthropic API 키를 먼저 설정해주세요.'; return; }
+
+  const statusEl = document.getElementById('add-url-status');
+  statusEl.textContent = '페이지 내용을 가져오는 중...';
+  document.getElementById('add-url-confirm-btn').disabled = true;
+
+  try{
+    // CORS 프록시로 페이지 내용 가져오기
+    let pageText = '';
+    const proxies = [
+      async () => {
+        const r = await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url), {signal: AbortSignal.timeout(8000)});
+        return await r.text();
+      },
+      async () => {
+        const r = await fetch('https://corsproxy.io/?'+encodeURIComponent(url), {signal: AbortSignal.timeout(8000)});
+        return await r.text();
+      }
+    ];
+    for(const p of proxies){
+      try{ pageText = await p(); if(pageText.length > 100) break; }catch(e){ continue; }
+    }
+
+    // HTML에서 텍스트 추출 (1500자 제한)
+    const tmp = document.createElement('div');
+    tmp.innerHTML = pageText;
+    // script/style 제거
+    tmp.querySelectorAll('script,style,nav,footer,header').forEach(el=>el.remove());
+    const rawText = (tmp.innerText || tmp.textContent || '').replace(/\s+/g,' ').trim().slice(0, 1500);
+
+    // Claude로 메타데이터 추출
+    statusEl.textContent = 'Claude가 내용을 분석하는 중...';
+    const sys = '당신은 웹페이지 내용에서 HR 기사 메타데이터를 추출하는 도우미입니다. JSON만 출력하세요.';
+    const prompt = `다음 웹페이지 내용에서 기사 정보를 추출해주세요.
+URL: ${url}
+내용: ${rawText}
+
+순수 JSON만 출력:
+{"title":"기사 제목","summary":"2-3문장 핵심 요약","source":"출처(언론사/사이트명)"}`;
+    const resp = await callClaude(apiKey, sys, prompt);
+    const meta = JSON.parse(resp.replace(/\`\`\`json\s*/g,'').replace(/\`\`\`\s*/g,'').trim());
+
+    _addUrlMeta = {title: meta.title||'', summary: meta.summary||'', source: meta.source||new URL(url).hostname, url};
+
+    // 미리보기 표시
+    document.getElementById('add-url-preview-title').textContent = _addUrlMeta.title;
+    document.getElementById('add-url-preview-summary').textContent = _addUrlMeta.summary;
+    document.getElementById('add-url-preview-source').textContent = _addUrlMeta.source;
+    document.getElementById('add-url-preview').classList.remove('hidden');
+    document.getElementById('add-url-confirm-btn').disabled = false;
+    statusEl.textContent = '✓ 내용 확인 후 "추가하기"를 눌러주세요.';
+    statusEl.style.color = '#16a34a';
+  }catch(e){
+    statusEl.textContent = '가져오기 실패: '+e.message;
+    statusEl.style.color = '#dc2626';
+  }
+}
+
+function confirmAddUrl(){
+  if(!_addUrlMeta) return;
+  const article = {..._addUrlMeta, manuallyAdded: true};
+
+  if(_addUrlTab === 'today'){
+    // 어제 탭 — 고용정책 섹션에 추가
+    const archive = getArchive();
+    if(!archive[todayKey]) archive[todayKey] = {sections:{}, fetchedAt: new Date().toISOString()};
+    if(!archive[todayKey].sections['고용정책']) archive[todayKey].sections['고용정책'] = [];
+    archive[todayKey].sections['고용정책'].push(article);
+    saveArchive(archive);
+    renderToday(archive[todayKey]);
+    if(currentPage !== 'today') switchPage('today');
+  } else {
+    // 주간 탭 — 선택한 섹션에 추가
+    const secKey = document.getElementById('add-url-section').value;
+    const wa = getWeeklyArchive();
+    if(!wa[weekKey]) wa[weekKey] = {sections:{}, weekLabel: getWeekLabel(), fetchedAt: new Date().toISOString()};
+    if(!wa[weekKey].sections[secKey]) wa[weekKey].sections[secKey] = [];
+    wa[weekKey].sections[secKey].push(article);
+    saveWeeklyArchive(wa);
+    renderWeekly(wa[weekKey]);
+    if(currentPage !== 'weekly') switchPage('weekly');
+  }
+
+  autoSyncToGist();
+  closeAddUrl();
+  document.getElementById('add-url-status').textContent = '';
+  document.getElementById('add-url-status').style.color = '';
+}
+
 /* ── SPLASH ── */
 (function(){
   const s=document.getElementById('splash');
