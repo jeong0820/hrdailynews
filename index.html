@@ -136,6 +136,23 @@
     .add-url-tab{flex:1;padding:7px;border-radius:9px;border:1.5px solid var(--border);background:white;color:var(--muted);font-size:12px;font-weight:500;font-family:inherit;cursor:pointer;}
     .add-url-tab.active{background:#0f1623;color:white;border-color:#0f1623;}
     .kw-section{padding-left:14px;margin-top:8px;padding-top:8px;border-top:.5px solid var(--border);}
+    .tl-view-btn{display:flex;align-items:center;justify-content:center;gap:5px;width:100%;padding:7px;margin-top:8px;border-radius:10px;border:.5px solid var(--border);background:var(--bg2);color:var(--muted);font-size:11px;cursor:pointer;font-family:inherit;transition:background .12s;}
+    .tl-view-btn:hover{background:#e5e7eb;}
+    .tl-view-btn.tl-open{background:#0f1623;color:white;border-color:#0f1623;}
+    .tl-view-btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+    .tl-panel{margin-top:8px;background:var(--bg2);border-radius:10px;padding:10px 11px;border:.5px solid var(--border);}
+    .tl-panel-head{font-size:11px;font-weight:600;color:var(--text);margin-bottom:3px;}
+    .tl-panel-sub{font-size:9.5px;color:var(--muted);margin-bottom:10px;line-height:1.5;}
+    .tl-row{display:flex;gap:0;}
+    .tl-spine{display:flex;flex-direction:column;align-items:center;width:20px;flex-shrink:0;}
+    .tl-dot-node{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:2px;z-index:1;}
+    .tl-seg{width:1.5px;flex:1;min-height:8px;opacity:.3;}
+    .tl-content{flex:1;padding:0 0 10px 8px;}
+    .tl-when{font-size:9px;color:var(--muted);margin-bottom:2px;}
+    .tl-badge-item{font-size:8.5px;font-weight:600;padding:1.5px 6px;border-radius:8px;display:inline-block;margin-bottom:3px;}
+    .tl-text-item{font-size:10.5px;color:var(--text);line-height:1.4;}
+    .tl-hr-note{font-size:9.5px;color:var(--muted);margin-top:2px;line-height:1.4;padding:4px 7px;background:rgba(0,0,0,.04);border-radius:6px;border-left:2px solid #d97706;}
+    .tl-loading{font-size:10.5px;color:var(--muted);padding:6px 0;text-align:center;}
     .kw-label{font-size:10px;color:var(--muted);margin-bottom:6px;font-weight:500;letter-spacing:.02em;}
     .kw-list{display:flex;flex-wrap:wrap;gap:5px;}
     .kw-pill{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:400;background:#f3f4f6;color:#374151;border:.5px solid #e5e7eb;cursor:pointer;transition:background .12s;user-select:none;-webkit-user-select:none;}
@@ -448,15 +465,19 @@
     <div id="add-url-sec-wrap" class="hidden">
       <div class="field-label">섹션 선택</div>
       <select id="add-url-section" class="api-input" style="appearance:auto;">
+        <optgroup label="어제 탭 섹션">
         <option value="고용정책">고용정책/정부동향</option>
+        <option value="노무컴플라이">노무/컴플라이언스</option>
+        </optgroup>
+        <optgroup label="주간 탭 섹션">
         <option value="보상급여">보상/급여</option>
         <option value="성과관리">성과관리·평가</option>
         <option value="채용">채용</option>
         <option value="인재개발">인재개발·조직문화·리더십</option>
-        <option value="HR테크">HR테크</option>
         <option value="글로벌HR">글로벌 HR</option>
+        <option value="HR테크">HR테크</option>
         <option value="HR인사이트">해외HR인사이트</option>
-        <option value="노무컴플라이">노무/컴플라이언스</option>
+        </optgroup>
       </select>
     </div>
 
@@ -546,11 +567,11 @@ const ALL_SEC = {
   'HR인사이트':  { label:'해외HR인사이트',              color:'#0369a1', bg:'#e0f2fe' },
   '노무컴플라이': { label:'노무/컴플라이언스',             color:'#be185d', bg:'#fdf2f8' },
 };
-const DAILY_SEC   = { '고용정책': ALL_SEC['고용정책'] };
+const DAILY_SEC   = { '고용정책': ALL_SEC['고용정책'], '노무컴플라이': ALL_SEC['노무컴플라이'] };
 const WEEKLY_SEC  = ALL_SEC;
 const ALL_ORDER   = ['고용정책','보상급여','성과관리','채용','인재개발','노무컴플라이','글로벌HR','HR테크','HR인사이트'];
-const DAILY_ORDER  = ['고용정책'];
-const WEEKLY_ORDER = ['고용정책','보상급여','성과관리','채용','인재개발','노무컴플라이','글로벌HR','HR테크','HR인사이트'];
+const DAILY_ORDER  = ['고용정책','노무컴플라이'];
+const WEEKLY_ORDER = ['보상급여','성과관리','채용','인재개발','글로벌HR','HR테크','HR인사이트'];
 
 /* ── PROMPTS ── */
 const RSS_FEEDS = [
@@ -653,36 +674,43 @@ const EXCLUDE_RULES = `
 - 특정 기업·업종의 자체적인 근무제도 도입 사례 (예: "○○은행 주 4.9일제 도입", "○○기업 유연근무 확대") — 정부 정책이 아닌 기업 자체 결정이면 제외`;
 
 const SYS_DAILY = `당신은 대기업 HR 담당자를 위한 전문 뉴스 큐레이터입니다.
-어제 하루 보도된 기사 중 고용정책·정부동향 관련 시급한 기사만 선정해 요약하세요.
+어제 하루 보도된 기사 중 즉각 대응이 필요한 기사를 두 섹션으로 분류해 요약하세요.
 코드블록, 마크다운, 설명 없이 순수 JSON만 출력하세요. 각 기사의 keywords는 HR 담당자가 해당 주제를 더 공부하기 위한 핵심 용어 3~5개:
-{"date":"날짜","sections":{"고용정책":[{"title":"제목","summary":"2-3문장 요약","source":"출처","url":"URL","keywords":["키워드1","키워드2","키워드3","키워드4","키워드5"]}]}}
+{"date":"날짜","sections":{"고용정책":[{"title":"제목","summary":"2-3문장 요약","source":"출처","url":"URL","keywords":["키워드1","키워드2","키워드3"]}],"노무컴플라이":[{"title":"제목","summary":"2-3문장 요약","source":"출처","url":"URL","keywords":["키워드1","키워드2","키워드3"]}]}}
 
-[선정 기준 — 아래 조건 중 하나 이상 해당해야 선택]
+[고용정책/정부동향 선정 기준 — 최대 3건]
 - 고용노동부·기재부·국회·중앙부처가 주체인 정책 발표·법령 개정·행정예고·고시
 - 대법원·헌법재판소 노동 관련 판결
 - 국회 본회의·상임위 통과 법안
 - HR 담당자가 이번 주 내로 즉각 대응 조치를 취해야 하는 정부·법령 관련 사항
+해당 기사 없으면 빈 배열.
+
+[노무/컴플라이언스 선정 기준 — 최대 3건]
+- 노동법·취업규칙·단체협약 관련 즉각 대응 필요 사항
+- 부당해고·직장 내 괴롭힘·산업재해 관련 최신 판례·결정
+- 근로감독 동향·노무관리 실무에 즉각 영향을 미치는 행정해석
+- 중앙노동위원회·지방노동위원회 주요 판정
+해당 기사 없으면 빈 배열.
 
 [반드시 제외]
-- 기업이 자체적으로 도입한 제도 — 단, 삼성전자·SK하이닉스·LG전자·LG에너지솔루션·현대차·기아·HD현대·카카오·네이버·쿠팡·배달의민족·토스·SKT·KT·LGU+·KB국민은행·신한은행·하나은행·롯데·신세계·CJ·넥슨·넷마블·크래프톤 등 HR 선도 대기업의 새로운 인사제도 도입은 주간 탭 대상이므로 어제 탭에서는 제외
-- 개별 기업·업종 트렌드 보도 (정부 정책이 아닌 것) — 단, 선도 대기업 인사제도 변화는 주간 탭으로
+- 기업이 자체적으로 도입한 제도 (선도 대기업 인사제도 변화는 주간 탭)
 - 개별 기업 채용 일정·공고
 - 지역 지청·고용센터 설명회·간담회
 
 ${EXCLUDE_RULES}
 
-[기사 중요도 우선순위 — 여러 기사가 있을 때 이 순서로 선택]
-출처 신뢰도: ① 고용노동부·국회·법원 등 1차 출처 → ② 연합뉴스·뉴시스 → ③ 주요 경제·종합지
+[기사 중요도 우선순위]
+출처 신뢰도: ① 고용노동부·국회·법원·중노위 등 1차 출처 → ② 연합뉴스·뉴시스 → ③ 주요 경제·종합지
 영향 범위: 전국 모든 기업 적용 > 특정 업종·규모만 해당
 시의성: 어제 발표·시행 > 그 이전 내용
 동일 주제 중복 시: 1순위 출처 1건만 선택, 나머지 제외
+URL은 원본 그대로.\`
 
-최대 3건. 해당 기사가 없으면 빈 배열. URL은 원본 그대로.`;
 
 const SYS_WEEKLY = `당신은 대기업 HR 담당자를 위한 전문 뉴스 큐레이터입니다.
-수집된 기사 중 이번 주 HR 업계의 주요 트렌드·인사이트를 8개 섹션으로 분류·요약하세요.
+수집된 기사 중 이번 주 HR 업계의 주요 트렌드·인사이트를 7개 섹션으로 분류·요약하세요.
 코드블록, 마크다운, 설명 없이 순수 JSON만 출력하세요:
-{"weekLabel":"YYYY년 MM월 N주차","sections":{"고용정책":[{"title":"제목","summary":"2-3문장 요약","source":"출처","url":"URL","keywords":["키워드1","키워드2","키워드3","키워드4","키워드5"]}],"보상급여":[...],"성과관리":[...],"채용":[...],"인재개발":[...],"HR테크":[...],"글로벌HR":[...],"HR인사이트":[{"title":"영문 원제","summary":"한국어 2-3문장 요약","source":"출처","url":"URL","keywords":["keyword1","keyword2","keyword3"]}],"노무컴플라이":[...]}}
+{"weekLabel":"YYYY년 MM월 N주차","sections":{"보상급여":[{"title":"제목","summary":"2-3문장 요약","source":"출처","url":"URL","keywords":["키워드1","키워드2","키워드3"]}],"성과관리":[...],"채용":[...],"인재개발":[...],"글로벌HR":[...],"HR테크":[...],"HR인사이트":[{"title":"영문 원제","summary":"한국어 2-3문장 요약","source":"출처","url":"URL","keywords":["keyword1","keyword2","keyword3"]}]}}
 
 [주간 탭 선정 기준 — "트렌드·인사이트"]
 다음 조건 중 하나라도 해당하면 선택:
@@ -694,7 +722,6 @@ const SYS_WEEKLY = `당신은 대기업 HR 담당자를 위한 전문 뉴스 큐
 - HBR·DBR 등 전문 매거진의 인사이트
 
 [섹션별 포함 기준]
-고용정책/정부동향: 정책 방향·입법 예고·중장기 고용 대책 등 향후 변화 예고.
 보상/급여: 임금 트렌드, 보상 체계 변화 흐름, 성과급 제도 변화 분석. M&A·합병 후 보상체계·연봉·성과급 통합 사례도 포함.
 성과관리·평가: 성과평가 방식 트렌드, OKR·KPI 운영 사례, 평가 피드백 문화. M&A 후 성과평가 기준 통합·KPI 재설계 사례도 포함.
 채용: 채용 시장 트렌드, 수시채용 확대, AI 면접 도입 흐름, 직무 중심 채용 변화, 신규 채용 프로세스·방식 변화, 채용 플랫폼 동향, 채용 트렌드 연구·조사. 반드시 채용 프로세스·방식·시장 자체에 관한 내용이어야 함. 단순 기업 채용 공고나 채용 인원 발표는 제외.
@@ -702,7 +729,6 @@ const SYS_WEEKLY = `당신은 대기업 HR 담당자를 위한 전문 뉴스 큐
 HR테크: HRMS·피플애널리틱스·AI 인사관리 트렌드, HR 소프트웨어 동향. M&A 후 HR 시스템 통합·HRMS 마이그레이션 사례도 포함.
 글로벌 HR: 한국 기업의 해외법인 인력운영·현지 노동법·외국인 고용허가·주재원 파견·보상 실무 이슈. 해외 기업 인수 후 현지 인력 통합·노동법 적용 이슈도 포함. 반드시 해외법인 또는 외국인 고용과 직접 관련된 기사만 포함. 단순 글로벌 트렌드나 해외 기업 사례는 해외HR인사이트 섹션으로.
 해외HR인사이트: SHRM·HR Dive·HR Executive 등 글로벌 HR 전문 매체의 트렌드·연구·칼럼. 최대 5건. 제목은 영문 원제 유지, 요약은 한국어로 작성.
-노무/컴플라이언스: 노동법·취업규칙·단체협약·부당해고·직장내 괴롭힘·산업재해·근로감독·노무관리 실무 이슈. 판례·행정해석·노동위원회 결정 포함.
 
 
 ${EXCLUDE_RULES}
@@ -711,8 +737,7 @@ ${EXCLUDE_RULES}
 2. 해외HR인사이트 섹션: [G-] 태그 영문 기사 중 최대 5건까지 선정 가능. 5건 초과 금지.
 3. 글로벌HR 섹션: 해외법인·외국인고용·주재원 직접 관련 기사 없으면 빈 배열 허용.
 4. 채용 섹션: 채용 프로세스·시장 트렌드 직접 관련 기사 없으면 빈 배열 허용.
-5. 노무컴플라이언스 섹션: 노동법·판례·노무관리 직접 관련 기사 없으면 빈 배열 허용.
-6. 나머지 6개 섹션: 관련 기사가 있으면 최소 1건 이상 선정.
+5. 나머지 섹션: 관련 기사가 있으면 최소 1건 이상 선정.
 6. 섹션 간 동일 기사 중복 배치 금지.
 
 [기사 중요도 우선순위 — 같은 섹션 내 여러 기사가 있을 때 이 순서로 선택]
@@ -906,6 +931,14 @@ function newsCardHTML(dateStr, secKey, idx, it, s, ctx=''){
   if(!it.keywords || !it.keywords.length){
     setTimeout(()=>_autoGenKeywords(aKey, it.title, it.summary), 100);
   }
+  // 고용정책·노무컴플라이 섹션에 타임라인 버튼 추가
+  const tlBtn = (secKey === '고용정책' || secKey === '노무컴플라이')
+    ? `<button class="tl-view-btn" id="tl-btn-${uid}" onclick="toggleTimeline('${uid}',${JSON.stringify(it.title||'')},${JSON.stringify(it.summary||'')})">
+        <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/></svg>
+        정책 타임라인 보기
+       </button>
+       <div id="tl-panel-${uid}" class="hidden"></div>`
+    : '';
   return `<div class="news-card${isHBR?' hbr':''}" id="card-${uid}">
     <div class="news-top">
       <span class="news-dot" style="background:${s.color};"></span>
@@ -916,7 +949,7 @@ function newsCardHTML(dateStr, secKey, idx, it, s, ctx=''){
       <span class="news-source${isHBR?' hbr-src':''}">${escHtml(it.source||'')}</span>
       <div class="footer-actions">${linkHtml}${dateEditBtn}${moveBtn}${deleteBtn}${memoBtn}</div>
     </div>
-    ${memoSection}${kwSection}
+    ${memoSection}${kwSection}${tlBtn}
   </div>`;
 }
 
@@ -2427,7 +2460,20 @@ function switchAddUrlTab(tab){
   _addUrlTab = tab;
   document.getElementById('add-url-tab-today').classList.toggle('active', tab==='today');
   document.getElementById('add-url-tab-weekly').classList.toggle('active', tab==='weekly');
-  document.getElementById('add-url-sec-wrap').classList.toggle('hidden', tab==='today');
+  // 어제·주간 모두 섹션 선택 표시 (어제탭도 고용정책/노무컴플라이 선택 가능)
+  // 탭에 따라 옵션 그룹 필터링
+  const sel = document.getElementById('add-url-section');
+  if(sel){
+    Array.from(sel.querySelectorAll('optgroup')).forEach(og=>{
+      const label = og.getAttribute('label')||'';
+      if(tab==='today') og.hidden = label.includes('주간');
+      else og.hidden = label.includes('어제');
+    });
+    // 첫 번째 보이는 옵션 선택
+    const firstVisible = sel.querySelector('option:not([hidden])') ||
+      sel.querySelector('optgroup:not([hidden]) option');
+    if(firstVisible) sel.value = firstVisible.value;
+  }
 }
 
 async function fetchUrlMeta(){
@@ -2503,15 +2549,16 @@ function confirmAddUrl(){
   const article = {..._addUrlMeta, date: chosenDate, manuallyAdded: true};
 
   if(_addUrlTab === 'today'){
-    // 어제 탭 — 고용정책 섹션, 선택한 날짜 키에 저장
+    // 어제 탭 — 선택한 섹션(고용정책 또는 노무컴플라이)에 저장
+    const dailySecKey = document.getElementById('add-url-section').value;
     const archive = getArchive();
     if(!archive[chosenDate]) archive[chosenDate] = {sections:{}, fetchedAt: new Date().toISOString()};
-    if(!archive[chosenDate].sections['고용정책']) archive[chosenDate].sections['고용정책'] = [];
-    archive[chosenDate].sections['고용정책'].push(article);
+    if(!archive[chosenDate].sections[dailySecKey]) archive[chosenDate].sections[dailySecKey] = [];
+    archive[chosenDate].sections[dailySecKey].push(article);
     saveArchive(archive);
     // 오늘 날짜면 어제탭 즉시 렌더, 아니면 날짜별 탭으로 이동
     if(chosenDate === todayKey){
-      renderToday(archive[chosenDate]);
+      renderToday(archive[todayKey]);
       if(currentPage !== 'today') switchPage('today');
     } else {
       switchPage('date');
@@ -2808,6 +2855,108 @@ function deleteKeyword(uid, aKey, idx){
     kwSec.outerHTML = newHtml || '';
   }
   autoSyncToGist();
+}
+
+/* ── POLICY TIMELINE ── */
+const _tlCache = {}; // uid → timeline data
+
+async function toggleTimeline(uid, title, summary){
+  const panel = document.getElementById('tl-panel-'+uid);
+  const btn   = document.getElementById('tl-btn-'+uid);
+  if(!panel || !btn) return;
+
+  // 이미 열려있으면 닫기
+  if(!panel.classList.contains('hidden')){
+    panel.classList.add('hidden');
+    panel.innerHTML = '';
+    btn.classList.remove('tl-open');
+    btn.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/></svg> 정책 타임라인 보기`;
+    return;
+  }
+
+  // 열기
+  btn.classList.add('tl-open');
+  btn.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/></svg> 정책 타임라인 닫기`;
+  panel.classList.remove('hidden');
+
+  // 캐시 확인
+  if(_tlCache[uid]){
+    panel.innerHTML = renderTimelinePanel(_tlCache[uid]);
+    return;
+  }
+
+  panel.innerHTML = '<div class="tl-loading">타임라인 생성 중...</div>';
+  const apiKey = localStorage.getItem('hr_api_key');
+  if(!apiKey){ panel.innerHTML = '<div class="tl-loading">API 키를 설정해주세요.</div>'; return; }
+
+  try{
+    const sys = '당신은 HR 전문 정책 분석가입니다. JSON만 출력하세요.';
+    const prompt = `다음 고용정책/정부동향 기사의 맥락을 이해하기 위한 정책·동향 타임라인을 생성해주세요.
+
+기사 제목: ${title}
+기사 요약: ${summary}
+
+[생성 규칙]
+1. 이 기사와 관련된 주제의 역사적 흐름을 시간순으로 4~6개 항목으로 구성하세요.
+2. 입법 흐름이 있는 주제: 정책입안→입법예고→시행→행정해석→주요판정 단계 사용
+3. 정치적 선언·기조 변화: 정책기조→제도변화→행정해석→현재동향 등 유연하게 구성
+4. 현재 기사는 타임라인 어딘가에 위치시키고 "현재기사":true 표시
+5. 예상되는 미래 흐름이 있으면 마지막에 1개 추가 (예정:true)
+6. HR 담당자 관점의 실무 영향을 마지막 현재기사 항목에 1~2줄 포함
+7. stage 값: 정책입안|입법예고|시행|행정해석|주요판정|정책기조|정책선언|제도변화|예정
+
+순수 JSON만 출력:
+{"title":"타임라인 제목","subtitle":"법령 변화 흐름 또는 정책 기조 변화 흐름","items":[{"when":"YYYY년 M월 또는 YYYY년","stage":"단계","text":"설명","hrNote":"HR 실무 영향 (현재기사에만)","현재기사":false,"예정":false}]}`;
+
+    const resp = await callClaude(apiKey, sys, prompt, 1000);
+    const data = JSON.parse(resp.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim());
+    _tlCache[uid] = data;
+    panel.innerHTML = renderTimelinePanel(data);
+  }catch(e){
+    panel.innerHTML = `<div class="tl-loading">생성 실패: ${e.message}</div>`;
+  }
+}
+
+function renderTimelinePanel(data){
+  const stageStyle = {
+    '정책입안':  {bg:'#f3f4f6',color:'#374151',dot:'#6b7280'},
+    '입법예고':  {bg:'#f3f4f6',color:'#374151',dot:'#6b7280'},
+    '시행':      {bg:'#111827',color:'#ffffff',dot:'#111827'},
+    '행정해석':  {bg:'#f3f4f6',color:'#374151',dot:'#6b7280'},
+    '주요판정':  {bg:'#f3f4f6',color:'#374151',dot:'#6b7280'},
+    '정책기조':  {bg:'#f3f4f6',color:'#374151',dot:'#6b7280'},
+    '정책선언':  {bg:'#111827',color:'#ffffff',dot:'#111827'},
+    '제도변화':  {bg:'#f3f4f6',color:'#374151',dot:'#6b7280'},
+    '예정':      {bg:'#f9fafb',color:'#9ca3af',dot:'#d1d5db'},
+  };
+  const items = data.items||[];
+  const rows = items.map((item, i)=>{
+    const st = stageStyle[item.stage] || {bg:'#f3f4f6',color:'#374151',dot:'#9ca3af'};
+    const isLast = i === items.length-1;
+    const isCurrent = item['현재기사'];
+    const isFuture = item['예정'];
+    const dotStyle = isFuture ? `background:transparent;border:1.5px dashed ${st.dot};` : `background:${st.dot};`;
+    const segColor = isLast ? 'transparent' : st.dot;
+    const nowBadge = isCurrent ? `<span style="font-size:9px;padding:1px 5px;background:#111827;color:#ffffff;border-radius:6px;margin-left:4px;">현재 기사</span>` : '';
+    const hrNote = item.hrNote ? `<div class="tl-hr-note">${escHtml(item.hrNote)}</div>` : '';
+    return `<div class="tl-row">
+      <div class="tl-spine">
+        <div class="tl-dot-node" style="${dotStyle}"></div>
+        <div class="tl-seg" style="background:${segColor};"></div>
+      </div>
+      <div class="tl-content">
+        <div class="tl-when">${escHtml(item.when||'')}${nowBadge}</div>
+        <span class="tl-badge-item" style="background:${st.bg};color:${st.color};">${escHtml(item.stage||'')}</span>
+        <div class="tl-text-item">${escHtml(item.text||'')}</div>
+        ${hrNote}
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="tl-panel">
+    <div class="tl-panel-head">${escHtml(data.title||'')}</div>
+    <div class="tl-panel-sub">${escHtml(data.subtitle||'')}</div>
+    ${rows}
+  </div>`;
 }
 
 /* ── SPLASH ── */
