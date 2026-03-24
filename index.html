@@ -153,9 +153,6 @@
     .err-bar{background:#fef2f2;border:1px solid #fecaca;border-radius:9px;padding:9px 13px;font-size:12px;color:#dc2626;margin-bottom:.75rem;}
 
     /* date archive */
-    .date-subtabs{display:flex;gap:6px;padding:10px 10px 4px;}
-    .date-subtab{flex:1;padding:8px;border-radius:10px;border:1.5px solid var(--border);background:white;color:var(--muted);font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;}
-    .date-subtab.active{background:#0f1623;color:white;border-color:#0f1623;}
     .archive-date-card{background:white;border-radius:13px;padding:.875rem 1rem;margin-bottom:6px;border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:space-between;}
     .archive-date-card:active{opacity:.7;}
     .archive-date{font-size:14px;font-weight:600;color:var(--text);}
@@ -309,12 +306,7 @@
 <!-- PAGE: 날짜별 -->
 <div class="page hidden" id="page-date">
   <!-- 날짜별 서브탭 -->
-  <div id="date-subtabs" class="date-subtabs">
-    <button class="date-subtab active" id="subtab-daily" onclick="switchDateSubtab('daily')">일자별</button>
-    <button class="date-subtab" id="subtab-weekly" onclick="switchDateSubtab('weekly')">주차별</button>
-  </div>
-  <div id="date-list-daily"></div>
-  <div id="date-list-weekly" class="hidden"></div>
+  <div id="date-list-weekly"></div>
   <div id="date-detail" class="hidden"></div>
 </div>
 
@@ -360,6 +352,20 @@
 </nav>
 
 <!-- DELETE CONFIRM MODAL -->
+<!-- DATE EDIT MODAL -->
+<div class="modal-overlay hidden" id="date-edit-modal" onclick="if(event.target===this)closeDateEdit()">
+  <div class="modal-sheet" onclick="event.stopPropagation()" style="text-align:center;">
+    <div class="modal-handle"></div>
+    <div style="font-size:15px;font-weight:700;color:#111;margin-bottom:6px;">기사 날짜 수정</div>
+    <div id="date-edit-article-title" style="font-size:12px;color:#6b7280;margin-bottom:14px;line-height:1.4;max-height:40px;overflow:hidden;text-overflow:ellipsis;"></div>
+    <input type="date" id="date-edit-input" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:11px;font-size:14px;font-family:inherit;margin-bottom:14px;text-align:center;">
+    <div style="display:flex;gap:8px;">
+      <button class="modal-close" style="flex:1;" onclick="closeDateEdit()">취소</button>
+      <button class="save-btn" style="flex:1;" onclick="confirmDateEdit()">저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay hidden" id="delete-modal" onclick="if(event.target===this)closeDeleteConfirm()">
   <div class="modal-sheet" onclick="event.stopPropagation()" style="text-align:center;">
     <div class="modal-handle"></div>
@@ -849,6 +855,10 @@ function newsCardHTML(dateStr, secKey, idx, it, s, ctx=''){
   _rcStore[delKey] = {aKey, uid, dateStr, secKey, isWeekly};
   const deleteBtn = `<button class="del-btn" onclick="openDeleteConfirm('${delKey}')" title="기사 삭제"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#9ca3af" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14a2,2 0 0 1-2,2H8a2,2 0 0 1-2-2L5,6"/><path d="M10,11v6"/><path d="M14,11v6"/><path d="M9,6V4a1,1 0 0 1,1-1h4a1,1 0 0 1,1,1v2"/></svg></button>`;
   const moveBtn = showMove ? `<button class="move-btn" onclick="openReclassify('${rcKey}')" title="섹션 이동"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#9ca3af" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="17,1 21,5 17,9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7,23 3,19 7,15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></button>` : '';
+  // 수동 추가 기사에만 날짜 수정 버튼 표시
+  const edKey = 'ed_'+uid;
+  _rcStore[edKey] = {aKey, uid, dateStr, secKey, isWeekly, currentDate: it.date||dateStr};
+  const dateEditBtn = it.manuallyAdded ? `<button class="del-btn" onclick="openDateEdit('${edKey}')" title="날짜 수정" style="color:#6b7280;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>` : '';
   const memoSection = `<div class="memo-area${hasMemo?'':' hidden'}" id="memo-area-${uid}">${renderMemoList(uid, memoList)}</div>`;
   return `<div class="news-card${isHBR?' hbr':''}" id="card-${uid}">
     <div class="news-top">
@@ -858,7 +868,7 @@ function newsCardHTML(dateStr, secKey, idx, it, s, ctx=''){
     <p class="news-summary">${escHtml(it.summary||'')}</p>
     <div class="news-footer">
       <span class="news-source${isHBR?' hbr-src':''}">${escHtml(it.source||'')}</span>
-      <div class="footer-actions">${linkHtml}${moveBtn}${deleteBtn}${memoBtn}</div>
+      <div class="footer-actions">${linkHtml}${moveBtn}${dateEditBtn}${deleteBtn}${memoBtn}</div>
     </div>
     ${memoSection}
   </div>`;
@@ -1198,10 +1208,86 @@ function openReclassify(storeKey){
   lbl2.style.cssText='font-size:11px;color:#9ca3af;font-weight:500;margin:8px 0 4px;';
   lbl2.textContent='주간 탭 섹션';
   btns.appendChild(lbl2);
-  Object.entries(WEEKLY_SEC).forEach(([key,s])=>{
+  WEEKLY_ORDER.forEach(key=>{
+    const s = WEEKLY_SEC[key]; if(!s) return;
     makeBtn(key, s, key===ctx.secKey, 'weekly');
   });
   document.getElementById('reclassify-modal').classList.remove('hidden');
+}
+
+/* ── DATE EDIT ── */
+let _dateEditCtx = null;
+
+function openDateEdit(storeKey){
+  const ctx = _rcStore[storeKey];
+  if(!ctx) return;
+  _dateEditCtx = ctx;
+  document.getElementById('date-edit-article-title').textContent = ctx.title || '';
+  // 현재 날짜 파싱 — dateStr에서 추출 (w_ prefix 제거)
+  const rawDate = ctx.isWeekly ? ctx.currentDate||'' : ctx.dateStr;
+  const d = rawDate.replace(/^w_/,'').slice(0,10);
+  document.getElementById('date-edit-input').value = d || todayKey;
+  document.getElementById('date-edit-modal').classList.remove('hidden');
+}
+
+function closeDateEdit(){
+  document.getElementById('date-edit-modal').classList.add('hidden');
+  _dateEditCtx = null;
+}
+
+function confirmDateEdit(){
+  if(!_dateEditCtx) return;
+  const {aKey, dateStr, secKey, isWeekly} = _dateEditCtx;
+  const newDate = document.getElementById('date-edit-input').value;
+  if(!newDate){ closeDateEdit(); return; }
+
+  // 원본 아카이브에서 기사 꺼내기
+  let article = null;
+  if(isWeekly){
+    const wk = dateStr.replace('w_','');
+    const wa = getWeeklyArchive();
+    const items = wa[wk]?.sections?.[secKey];
+    if(!items) return;
+    const idx = parseInt(aKey.split('_').pop());
+    article = items[idx];
+    if(!article) return;
+    items.splice(idx,1);
+    if(!items.length) delete wa[wk].sections[secKey];
+    saveWeeklyArchive(wa);
+    // 새 주차에 저장
+    const newWk = getWeekStart(newDate);
+    if(!wa[newWk]) wa[newWk] = {sections:{}, weekLabel: normalizeWeekLabel(newWk,''), fetchedAt: new Date().toISOString()};
+    if(!wa[newWk].sections[secKey]) wa[newWk].sections[secKey] = [];
+    article = {...article, date: newDate};
+    wa[newWk].sections[secKey].push(article);
+    saveWeeklyArchive(wa);
+  } else {
+    const arch = getArchive();
+    const items = arch[dateStr]?.sections?.[secKey];
+    if(!items) return;
+    const idx = parseInt(aKey.split('_').pop());
+    article = items[idx];
+    if(!article) return;
+    items.splice(idx,1);
+    if(!items.length) delete arch[dateStr].sections[secKey];
+    saveArchive(arch);
+    // 새 날짜에 저장
+    if(!arch[newDate]) arch[newDate] = {sections:{}, fetchedAt: new Date().toISOString()};
+    if(!arch[newDate].sections[secKey]) arch[newDate].sections[secKey] = [];
+    article = {...article, date: newDate};
+    arch[newDate].sections[secKey].push(article);
+    saveArchive(arch);
+  }
+
+  autoSyncToGist();
+  closeDateEdit();
+
+  // 현재 탭 갱신
+  if(currentPage==='today') renderToday(getArchive()[todayKey]||{sections:{}});
+  else if(currentPage==='weekly') renderWeekly(getWeeklyArchive()[weekKey]||{sections:{}});
+  else if(currentPage==='date') renderDateList();
+  else if(currentPage==='topic') renderTopicList();
+  else if(currentPage==='search'){ const q=document.getElementById('search-input')?.value.trim(); if(q) doSearch(); }
 }
 
 /* ── DELETE ARTICLE ── */
@@ -1547,6 +1633,29 @@ function getWeekLabel(){
   return `${year}년 ${month}월 ${weekOfMonth}주차`;
 }
 
+// wk(YYYY-MM-DD)와 저장된 label을 받아 연도가 없으면 보정
+function normalizeWeekLabel(wk, label){
+  // 이미 연도 포함("2026년 ..." 형태)이면 그대로
+  if(label && /^\d{4}년/.test(label)) return label;
+  // wk에서 연도 추출해서 앞에 붙이기
+  const year = new Date(wk).getFullYear();
+  if(label && label.trim()) return `${year}년 ${label.trim()}`;
+  // label 자체가 없으면 완전 생성
+  const d = new Date(wk);
+  return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${Math.ceil(d.getDate()/7)}주차`;
+}
+
+// 앱 시작 시 기존 저장 데이터 weekLabel 일괄 마이그레이션
+function migrateWeekLabels(){
+  const wa = getWeeklyArchive();
+  let changed = false;
+  Object.keys(wa).forEach(wk=>{
+    const fixed = normalizeWeekLabel(wk, wa[wk].weekLabel||'');
+    if(fixed !== wa[wk].weekLabel){ wa[wk].weekLabel = fixed; changed = true; }
+  });
+  if(changed) saveWeeklyArchive(wa);
+}
+
 function setLastBar(ts){
   if(!ts) return;
   const el = document.getElementById('last-bar');
@@ -1580,75 +1689,7 @@ function getWeekStart(dateStr){
   return d.toISOString().slice(0,10);
 }
 
-function switchDateSubtab(type){
-  const isDailyActive = type === 'daily';
-  document.getElementById('subtab-daily').classList.toggle('active', isDailyActive);
-  document.getElementById('subtab-weekly').classList.toggle('active', !isDailyActive);
-  document.getElementById('date-list-daily').classList.toggle('hidden', !isDailyActive);
-  document.getElementById('date-list-weekly').classList.toggle('hidden', isDailyActive);
-  document.getElementById('date-detail').classList.add('hidden');
-  document.getElementById('date-subtabs').classList.remove('hidden');
-}
 
-function renderDateList(){
-  const archive = getArchive();
-  const weeklyArchive = getWeeklyArchive();
-  const detail = document.getElementById('date-detail');
-  detail.classList.add('hidden');
-  document.getElementById('date-subtabs').classList.remove('hidden');
-
-  const memos = getMemos();
-  const dates = Object.keys(archive).sort((a,b)=>b.localeCompare(a));
-  const weekDates = Object.keys(weeklyArchive).sort((a,b)=>b.localeCompare(a));
-
-  // 일자별 목록
-  const dailyEl = document.getElementById('date-list-daily');
-  if(!dates.length){
-    dailyEl.innerHTML = `<div class="empty-wrap"><div class="empty-icon-box">${ICO.emptyCal}</div><div class="empty-title">저장된 일간 브리핑이 없어요</div><div class="empty-sub">뉴스를 받으면 날짜별로 저장됩니다</div></div>`;
-  } else {
-    dailyEl.innerHTML = dates.map(d=>{
-      const item = archive[d];
-      const label = new Date(d).toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
-      const total = DAILY_ORDER.reduce((s,k)=>s+((item.sections&&item.sections[k])||[]).length,0);
-      const mc = Object.keys(memos).filter(k=>k.startsWith(d+'_')).reduce((s,k)=>s+getMemoList(memos,k).length, 0);
-      return `<div class="archive-date-card" onclick="showDateDetail('${d}')">
-        <div><div class="archive-date">${label}${d===todayKey?' — 오늘':''}</div>
-        <div class="archive-meta">기사 ${total}건${mc>0?' · <span class="memo-badge">메모 '+mc+'개</span>':''}</div></div>
-        <div class="archive-arrow">${ICO.chevR}</div></div>`;
-    }).join('');
-  }
-
-  // 주차별 목록
-  const weeklyEl = document.getElementById('date-list-weekly');
-  if(!weekDates.length){
-    weeklyEl.innerHTML = `<div class="empty-wrap"><div class="empty-icon-box">${ICO.emptyCal}</div><div class="empty-title">저장된 주간 브리핑이 없어요</div><div class="empty-sub">뉴스를 받으면 주차별로 저장됩니다</div></div>`;
-  } else {
-    weeklyEl.innerHTML = weekDates.map(wk=>{
-      const item = weeklyArchive[wk];
-      const label = item.weekLabel || (() => { const d = new Date(wk); return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${Math.ceil(d.getDate()/7)}주차`; })();
-      const total = WEEKLY_ORDER.reduce((s,k)=>s+((item.sections&&item.sections[k])||[]).length,0);
-      // 주간 기사 URL 수집 후 URL 기준 중복 제거 메모 합산
-      const wkUrlSeen = new Set();
-      let mc = 0;
-      WEEKLY_ORDER.forEach(secKey=>{
-        ((item.sections&&item.sections[secKey])||[]).forEach((art, idx)=>{
-          const aKey = articleKey('w_'+wk, secKey, idx);
-          const memoItems = getMemoList(memos, aKey);
-          if(!memoItems.length) return;
-          const dedupeKey = art.url || aKey;
-          if(!wkUrlSeen.has(dedupeKey)){
-            wkUrlSeen.add(dedupeKey);
-            mc += memoItems.length;
-          }
-        });
-      });
-      return `<div class="archive-date-card" onclick="showWeeklyDetail('${wk}')">
-        <div><div class="archive-date">${label}</div>
-        <div class="archive-meta">기사 ${total}건${mc>0?' · <span class="memo-badge">메모 '+mc+'개</span>':''}</div></div>
-        <div class="archive-arrow">${ICO.chevR}</div></div>`;
-    }).join('');
-  }
-}
 
 /* ── TOPIC ARCHIVE ── */
 function renderTopicList(){
@@ -1747,7 +1788,7 @@ function showTopicDetail(secKey, type){
         });
       }
       if(!items.length && !dailyItems.length) return;
-      const label = wa[wk].weekLabel||wk;
+      const label = normalizeWeekLabel(wk, wa[wk]?.weekLabel||'');
       html += `<div style="font-size:11px;color:var(--muted);margin:10px 0 5px;font-weight:500;">${label}</div>`;
       html += items.map((it,idx)=>newsCardHTML('w_'+wk,secKey,idx,it,s,'tp')).join('');
       dailyItems.forEach(({it,idx,dateStr})=>{
@@ -1784,7 +1825,7 @@ function showTopicDetail(secKey, type){
     weeks.forEach(wk=>{
       const items = ((getWeeklyArchive()[wk].sections&&getWeeklyArchive()[wk].sections[secKey])||[]);
       if(!items.length) return;
-      const label = getWeeklyArchive()[wk]?.weekLabel || (() => { const d=new Date(wk); return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${Math.ceil(d.getDate()/7)}주차`; })();
+      const label = normalizeWeekLabel(wk, getWeeklyArchive()[wk]?.weekLabel||'');
       html += `<div style="font-size:11px;color:var(--muted);margin:10px 0 5px;font-weight:500;">${label}</div>`;
       html += items.map((it,idx)=>newsCardHTML('w_'+wk,secKey,idx,it,s,'tp')).join('');
     });
@@ -1802,9 +1843,7 @@ function backToTopicList(){
 
 function showDateDetail(dateStr){
   const data = getArchive()[dateStr]; if(!data) return;
-  document.getElementById('date-list-daily').classList.add('hidden');
   document.getElementById('date-list-weekly').classList.add('hidden');
-  document.getElementById('date-subtabs').classList.add('hidden');
   const detail = document.getElementById('date-detail'); detail.classList.remove('hidden');
   const dt = new Date(dateStr);
   document.getElementById('top-title').textContent = dt.toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'});
@@ -1827,15 +1866,10 @@ function showMergedWeekDetail(wk){
   // 해당 주차에 속하는 일간 날짜들
   const dailyDates = Object.keys(archive).filter(d => getWeekStart(d) === wk).sort((a,b)=>b.localeCompare(a));
 
-  document.getElementById('date-list-daily').classList.add('hidden');
   document.getElementById('date-list-weekly').classList.add('hidden');
-  document.getElementById('date-subtabs').classList.add('hidden');
   const detail = document.getElementById('date-detail'); detail.classList.remove('hidden');
 
-  const weekLabel = weeklyData?.weekLabel || (() => {
-    const d = new Date(wk);
-    return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${Math.ceil(d.getDate()/7)}주차`;
-  })();
+  const weekLabel = normalizeWeekLabel(wk, weeklyData?.weekLabel||'');
   document.getElementById('top-title').textContent = weekLabel;
 
   let html = `<button class="back-btn" onclick="backToList()">${ICO.chevL} 아카이브</button>`;
@@ -1902,9 +1936,6 @@ function showMergedWeekDetail(wk){
 function backToList(){
   document.getElementById('top-title').textContent='날짜별 아카이브';
   renderDateList();
-  // 현재 활성 서브탭 복원
-  const activeSubtab = document.getElementById('subtab-weekly').classList.contains('active') ? 'weekly' : 'daily';
-  switchDateSubtab(activeSubtab);
 }
 
 /* ── SEARCH ── */
@@ -1950,7 +1981,7 @@ function doSearch(){
   const hl = txt=>escHtml(txt).replace(new RegExp(escRegex(q),'gi'),m=>`<span class="highlight">${m}</span>`);
   const grouped = {};
   results.forEach(r=>{
-    const lbl = r.isWeekly ? (getWeeklyArchive()[r.wk]?.weekLabel||r.wk) : r.dateStr;
+    const lbl = r.isWeekly ? normalizeWeekLabel(r.wk, getWeeklyArchive()[r.wk]?.weekLabel||'') : r.dateStr;
     if(!grouped[lbl]) grouped[lbl]=[];
     grouped[lbl].push(r);
   });
@@ -2309,6 +2340,9 @@ function confirmAddUrl(){
   document.getElementById('add-url-status').textContent = '';
   document.getElementById('add-url-status').style.color = '';
 }
+
+// 기존 weekLabel 연도 마이그레이션
+migrateWeekLabels();
 
 /* ── SPLASH ── */
 (function(){
