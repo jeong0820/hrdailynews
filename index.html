@@ -135,6 +135,21 @@
     .loading-wrap{text-align:center;padding:3rem 1rem;}
     .add-url-tab{flex:1;padding:7px;border-radius:9px;border:1.5px solid var(--border);background:white;color:var(--muted);font-size:12px;font-weight:500;font-family:inherit;cursor:pointer;}
     .add-url-tab.active{background:#0f1623;color:white;border-color:#0f1623;}
+    .kw-section{padding-left:14px;margin-top:8px;padding-top:8px;border-top:.5px solid var(--border);}
+    .kw-label{font-size:10px;color:var(--muted);margin-bottom:6px;font-weight:500;letter-spacing:.02em;}
+    .kw-list{display:flex;flex-wrap:wrap;gap:5px;}
+    .kw-pill{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:400;background:#f3f4f6;color:#374151;border:.5px solid #e5e7eb;cursor:pointer;transition:background .12s;user-select:none;-webkit-user-select:none;}
+    .kw-pill:hover{background:#e5e7eb;}
+    .kw-pill.kw-active{background:#111827;color:white;border-color:#111827;}
+    .kw-url-panel{margin-top:8px;background:#f9fafb;border-radius:10px;padding:10px 12px;border:.5px solid var(--border);}
+    .kw-url-title{font-size:12px;font-weight:600;color:#111;margin-bottom:8px;}
+    .kw-url-item{display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-top:.5px solid var(--border);}
+    .kw-url-item:first-of-type{border-top:none;padding-top:0;}
+    .kw-url-favicon{width:16px;height:16px;border-radius:3px;background:#e5e7eb;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;font-size:8px;color:#6b7280;}
+    .kw-url-link{font-size:11.5px;color:#2563eb;line-height:1.4;text-decoration:none;display:block;margin-bottom:1px;}
+    .kw-url-link:hover{text-decoration:underline;}
+    .kw-url-source{font-size:10px;color:#9ca3af;}
+    .kw-url-loading{font-size:11px;color:#9ca3af;padding:4px 0;}
     .loading-spinner{width:32px;height:32px;border:3px solid rgba(0,0,0,.08);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 1rem;}
     @keyframes spin{to{transform:rotate(360deg)}}
     .spinner{width:30px;height:30px;border:3px solid rgba(0,0,0,.07);border-top-color:var(--navy);border-radius:50%;animation:spin .75s linear infinite;margin:0 auto .875rem;}
@@ -353,6 +368,19 @@
 
 <!-- DELETE CONFIRM MODAL -->
 <!-- DATE EDIT MODAL -->
+<!-- KW DELETE MODAL -->
+<div class="modal-overlay hidden" id="kw-delete-modal" onclick="if(event.target===this)closeKwDeleteConfirm()">
+  <div class="modal-sheet" onclick="event.stopPropagation()" style="text-align:center;">
+    <div class="modal-handle"></div>
+    <div style="font-size:15px;font-weight:700;color:#111;margin-bottom:6px;">키워드 삭제</div>
+    <div style="font-size:13px;color:#6b7280;margin-bottom:16px;line-height:1.5;"><span id="kw-delete-kw-name" style="color:#111;font-weight:500;"></span> 키워드를 삭제하시겠습니까?</div>
+    <div style="display:flex;gap:8px;">
+      <button class="modal-close" style="flex:1;" onclick="closeKwDeleteConfirm()">취소</button>
+      <button class="save-btn" style="flex:1;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;" onclick="confirmKwDelete()">삭제</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay hidden" id="date-edit-modal" onclick="if(event.target===this)closeDateEdit()">
   <div class="modal-sheet" onclick="event.stopPropagation()" style="text-align:center;">
     <div class="modal-handle"></div>
@@ -613,8 +641,8 @@ const EXCLUDE_RULES = `
 
 const SYS_DAILY = `당신은 대기업 HR 담당자를 위한 전문 뉴스 큐레이터입니다.
 어제 하루 보도된 기사 중 고용정책·정부동향 관련 시급한 기사만 선정해 요약하세요.
-코드블록, 마크다운, 설명 없이 순수 JSON만 출력하세요:
-{"date":"날짜","sections":{"고용정책":[{"title":"제목","summary":"2-3문장 요약","source":"출처","url":"URL"}]}}
+코드블록, 마크다운, 설명 없이 순수 JSON만 출력하세요. 각 기사의 keywords는 HR 담당자가 해당 주제를 더 공부하기 위한 핵심 용어 3~5개:
+{"date":"날짜","sections":{"고용정책":[{"title":"제목","summary":"2-3문장 요약","source":"출처","url":"URL","keywords":["키워드1","키워드2","키워드3","키워드4","키워드5"]}]}}
 
 [선정 기준 — 아래 조건 중 하나 이상 해당해야 선택]
 - 고용노동부·기재부·국회·중앙부처가 주체인 정책 발표·법령 개정·행정예고·고시
@@ -641,7 +669,7 @@ ${EXCLUDE_RULES}
 const SYS_WEEKLY = `당신은 대기업 HR 담당자를 위한 전문 뉴스 큐레이터입니다.
 수집된 기사 중 이번 주 HR 업계의 주요 트렌드·인사이트를 8개 섹션으로 분류·요약하세요.
 코드블록, 마크다운, 설명 없이 순수 JSON만 출력하세요:
-{"weekLabel":"YYYY년 MM월 N주차","sections":{"고용정책":[{"title":"제목","summary":"2-3문장 요약","source":"출처","url":"URL"}],"보상급여":[...],"성과관리":[...],"채용":[...],"인재개발":[...],"HR테크":[...],"글로벌HR":[...],"HR인사이트":[{"title":"영문 원제","summary":"한국어 2-3문장 요약","source":"출처","url":"URL"}],"노무컴플라이":[...]}}
+{"weekLabel":"YYYY년 MM월 N주차","sections":{"고용정책":[{"title":"제목","summary":"2-3문장 요약","source":"출처","url":"URL","keywords":["키워드1","키워드2","키워드3","키워드4","키워드5"]}],"보상급여":[...],"성과관리":[...],"채용":[...],"인재개발":[...],"HR테크":[...],"글로벌HR":[...],"HR인사이트":[{"title":"영문 원제","summary":"한국어 2-3문장 요약","source":"출처","url":"URL","keywords":["keyword1","keyword2","keyword3"]}],"노무컴플라이":[...]}}
 
 [주간 탭 선정 기준 — "트렌드·인사이트"]
 다음 조건 중 하나라도 해당하면 선택:
@@ -860,6 +888,7 @@ function newsCardHTML(dateStr, secKey, idx, it, s, ctx=''){
   _rcStore[edKey] = {aKey, uid, dateStr, secKey, isWeekly, currentDate: it.date||dateStr};
   const dateEditBtn = `<button class="del-btn" onclick="openDateEdit('${edKey}')" title="날짜 수정"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#9ca3af" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>`;
   const memoSection = `<div class="memo-area${hasMemo?'':' hidden'}" id="memo-area-${uid}">${renderMemoList(uid, memoList)}</div>`;
+  const kwSection = renderKeywords(uid, it.keywords||[], aKey);
   return `<div class="news-card${isHBR?' hbr':''}" id="card-${uid}">
     <div class="news-top">
       <span class="news-dot" style="background:${s.color};"></span>
@@ -870,7 +899,7 @@ function newsCardHTML(dateStr, secKey, idx, it, s, ctx=''){
       <span class="news-source${isHBR?' hbr-src':''}">${escHtml(it.source||'')}</span>
       <div class="footer-actions">${linkHtml}${dateEditBtn}${moveBtn}${deleteBtn}${memoBtn}</div>
     </div>
-    ${memoSection}
+    ${memoSection}${kwSection}
   </div>`;
 }
 
@@ -1253,6 +1282,9 @@ function confirmDateEdit(){
     if(!article) return;
     items.splice(idx,1);
     if(!items.length) delete wa[wk].sections[secKey];
+    // 해당 주차에 기사가 하나도 없으면 주차 엔트리 삭제
+    const hasAnyInWk = WEEKLY_ORDER.some(k=>((wa[wk]?.sections?.[k])||[]).length > 0);
+    if(!hasAnyInWk) delete wa[wk];
     saveWeeklyArchive(wa);
     // 새 주차에 저장
     const newWk = getWeekStart(newDate);
@@ -1270,6 +1302,9 @@ function confirmDateEdit(){
     if(!article) return;
     items.splice(idx,1);
     if(!items.length) delete arch[dateStr].sections[secKey];
+    // 해당 날짜에 기사가 하나도 없으면 날짜 엔트리 삭제
+    const hasAnyInDate = DAILY_ORDER.some(k=>((arch[dateStr]?.sections?.[k])||[]).length > 0);
+    if(!hasAnyInDate) delete arch[dateStr];
     saveArchive(arch);
     // 새 날짜에 저장
     if(!arch[newDate]) arch[newDate] = {sections:{}, fetchedAt: new Date().toISOString()};
@@ -1634,13 +1669,13 @@ async function fetchNews(){
   }finally{ btn.disabled=false; autoSyncToGist(); }
 }
 
-async function callClaude(key, sys, prompt){
+async function callClaude(key, sys, prompt, maxTokens=3000){
   let resp;
   try{
     resp = await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:3000,system:sys,messages:[{role:'user',content:prompt}]})
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:maxTokens,system:sys,messages:[{role:'user',content:prompt}]})
     });
   }catch(e){ throw new Error('NETWORK:'+e.message); }
   const data = await resp.json();
@@ -1767,7 +1802,7 @@ function renderTopicList(){
     html += `<div class="archive-date-card" style="border-left:3px solid ${s.color};" onclick="showTopicDetail('${key}','merged')">
       <div>
         <div class="archive-date">${s.label}${extraLabel}</div>
-        <div class="archive-meta">기사 ${total}건${allWeeklyDates.length>0?' · '+allWeeklyDates.length+'주치':''}${mc>0?' · <span class="memo-badge">메모 '+mc+'개</span>':''}</div>
+        <div class="archive-meta">기사 ${total}건${mc>0?' · <span class="memo-badge">메모 '+mc+'개</span>':''}</div>
       </div>
       <div class="archive-arrow">${ICO.chevR}</div>
     </div>`;
@@ -1889,7 +1924,7 @@ function showMergedWeekDetail(wk){
   const weeklyData = getWeeklyArchive()[wk];
   const archive = getArchive();
   // 해당 주차에 속하는 일간 날짜들
-  const dailyDates = Object.keys(archive).filter(d => getWeekStart(d) === wk).sort((a,b)=>b.localeCompare(a));
+  const dailyDates = Object.keys(archive).filter(d => { const computed = getWeekStart(d); return computed === wk || normalizeWeekLabel(computed,'') === normalizeWeekLabel(wk, weeklyData?.weekLabel||''); }).sort((a,b)=>b.localeCompare(a));
 
   document.getElementById('date-list-weekly').classList.add('hidden');
   const detail = document.getElementById('date-detail'); detail.classList.remove('hidden');
@@ -1967,9 +2002,23 @@ function renderDateList(){
   const weeklyEl = document.getElementById('date-list-weekly');
   weeklyEl.classList.remove('hidden');
 
+  // 일간 날짜의 주차 키를 weeklyArchive의 기존 키와 매칭
+  // (timezone 계산 차이로 키가 ±1~6일 차이날 수 있음)
+  function resolveWkKey(wk){
+    if(weeklyArchive[wk]) return wk; // 정확히 일치
+    // 같은 주의 레이블이 일치하는 기존 키 탐색 (±6일 범위)
+    const targetLabel = normalizeWeekLabel(wk, '');
+    for(const existingWk of Object.keys(weeklyArchive)){
+      if(normalizeWeekLabel(existingWk, weeklyArchive[existingWk].weekLabel||'') === targetLabel){
+        return existingWk;
+      }
+    }
+    return wk; // 없으면 원본 키 사용
+  }
+
   // 주간 아카이브 키 + 일간 아카이브에서 주차 키 추출 (수동 추가 기사 포함)
   const allWkKeys = new Set(Object.keys(weeklyArchive));
-  Object.keys(archive).forEach(d => allWkKeys.add(getWeekStart(d)));
+  Object.keys(archive).forEach(d => allWkKeys.add(resolveWkKey(getWeekStart(d))));
   const sortedWks = [...allWkKeys].sort((a,b)=>b.localeCompare(a));
 
   if(!sortedWks.length){
@@ -1985,7 +2034,7 @@ function renderDateList(){
     const weeklyUrls = new Set();
     if(item) WEEKLY_ORDER.forEach(k=>((item.sections&&item.sections[k])||[]).forEach(it=>{ if(it.url) weeklyUrls.add(it.url); }));
     let dailyTotal = 0;
-    Object.keys(archive).filter(d=>getWeekStart(d)===wk).forEach(d=>{
+    Object.keys(archive).filter(d=>{ const c=getWeekStart(d); return c===wk||normalizeWeekLabel(c,'')===normalizeWeekLabel(wk,''); }).forEach(d=>{
       DAILY_ORDER.forEach(k=>{
         ((archive[d].sections&&archive[d].sections[k])||[]).forEach(it=>{
           if(!it.url || !weeklyUrls.has(it.url)) dailyTotal++;
@@ -2006,7 +2055,7 @@ function renderDateList(){
       });
     });
     // 일간 메모도 포함
-    Object.keys(archive).filter(d=>getWeekStart(d)===wk).forEach(d=>{
+    Object.keys(archive).filter(d=>{ const c=getWeekStart(d); return c===wk||normalizeWeekLabel(c,'')===normalizeWeekLabel(wk,''); }).forEach(d=>{
       DAILY_ORDER.forEach(k=>{
         ((archive[d].sections&&archive[d].sections[k])||[]).forEach((art,idx)=>{
           const aKey = articleKey(d, k, idx);
@@ -2434,6 +2483,189 @@ function confirmAddUrl(){
 
 // 기존 weekLabel 연도 마이그레이션
 migrateWeekLabels();
+
+/* ── KEYWORDS ── */
+const _kwUrlCache = {}; // 키워드 → URL 결과 캐시 (앱 세션 동안 유지)
+
+function renderKeywords(uid, keywords, aKey){
+  if(!keywords || !keywords.length) return '';
+  const pills = keywords.map((kw,i)=>
+    `<span class="kw-pill"
+      id="kwpill-${uid}-${i}"
+      onclick="toggleKwUrl('${uid}','${aKey}',${i},${JSON.stringify(kw).replace(/'/g,'\')})"
+      ontouchstart="startKwLongPress('${uid}','${aKey}',${i},${JSON.stringify(kw).replace(/'/g,'\'')})"
+      ontouchend="cancelKwLongPress()"
+      ontouchmove="cancelKwLongPress()"
+      onmousedown="startKwLongPress('${uid}','${aKey}',${i},${JSON.stringify(kw).replace(/'/g,'\'')})"
+      onmouseup="cancelKwLongPress()"
+      onmouseleave="cancelKwLongPress()"
+    >${escHtml(kw)}</span>`
+  ).join('');
+  return `<div class="kw-section" id="kw-section-${uid}">
+    <div class="kw-label">연관 키워드</div>
+    <div class="kw-list">${pills}</div>
+    <div id="kw-url-panel-${uid}" class="hidden"></div>
+  </div>`;
+}
+
+let _kwActiveUid = null;
+let _kwActiveIdx = null;
+let _kwLongPressTimer = null;
+
+async function toggleKwUrl(uid, aKey, idx, kw){
+  // 같은 키워드 다시 클릭 → 닫기
+  if(_kwActiveUid === uid && _kwActiveIdx === idx){
+    document.getElementById('kwpill-'+uid+'-'+idx)?.classList.remove('kw-active');
+    const panel = document.getElementById('kw-url-panel-'+uid);
+    if(panel){ panel.classList.add('hidden'); panel.innerHTML=''; }
+    _kwActiveUid = null; _kwActiveIdx = null;
+    return;
+  }
+  // 다른 카드의 활성 키워드 닫기
+  if(_kwActiveUid && _kwActiveUid !== uid){
+    document.getElementById('kwpill-'+_kwActiveUid+'-'+_kwActiveIdx)?.classList.remove('kw-active');
+    const oldPanel = document.getElementById('kw-url-panel-'+_kwActiveUid);
+    if(oldPanel){ oldPanel.classList.add('hidden'); oldPanel.innerHTML=''; }
+  }
+  // 같은 카드의 이전 활성 키워드 닫기
+  if(_kwActiveUid === uid && _kwActiveIdx !== idx){
+    document.getElementById('kwpill-'+uid+'-'+_kwActiveIdx)?.classList.remove('kw-active');
+  }
+  _kwActiveUid = uid; _kwActiveIdx = idx;
+  document.getElementById('kwpill-'+uid+'-'+idx)?.classList.add('kw-active');
+
+  const panel = document.getElementById('kw-url-panel-'+uid);
+  if(!panel) return;
+  panel.classList.remove('hidden');
+
+  // 캐시 확인
+  if(_kwUrlCache[kw]){
+    panel.innerHTML = renderKwUrlPanel(kw, _kwUrlCache[kw]);
+    return;
+  }
+
+  // 로딩 상태
+  panel.innerHTML = `<div class="kw-url-loading">🔍 "${escHtml(kw)}" 학습 링크를 찾는 중...</div>`;
+
+  const apiKey = localStorage.getItem('hr_api_key');
+  if(!apiKey){
+    panel.innerHTML = `<div class="kw-url-loading">API 키를 설정해주세요.</div>`;
+    return;
+  }
+
+  try{
+    const sys = '당신은 HR 전문 학습 도우미입니다. JSON만 출력하세요.';
+    const prompt = `HR 담당자가 "${kw}" 키워드를 깊이 공부하기 위한 웹 링크 3개를 추천해주세요.
+
+[링크 선정 기준 — 엄격히 적용]
+1. 반드시 실제로 존재하는 URL만 제시. 존재가 불확실하면 제외.
+2. 우선순위:
+   ① 법령/판례: law.go.kr (국가법령정보센터), lbox.kr, casenote.kr
+   ② 정부/공공: moel.go.kr (고용노동부), kli.re.kr (한국노동연구원), kosha.or.kr (안전보건공단), nts.go.kr
+   ③ 국제: ilo.org, shrm.org, hbr.org, mckinsey.com
+   ④ 전문 저널/매체: 월간 인사관리, HR인사이트, 노동법률
+3. 링크 유형은 다양하게 — 법령 원문 1개 + 해설/가이드 1개 + 연구/사례 1개 조합 권장.
+4. 절대 금지: 블로그, 티스토리, 네이버 블로그, 뉴스 기사, 위키피디아, 특정 기업 홍보 페이지.
+5. URL은 최상위 도메인이 아닌 실제 콘텐츠 페이지 경로까지 포함.
+
+순수 JSON 배열만 출력 (설명 없음):
+[{"title":"페이지 제목","url":"https://도메인/경로","source":"사이트명","type":"법령원문|가이드|연구보고서|글로벌자료"}]`;
+    const resp = await callClaude(apiKey, sys, prompt, 600);
+    const links = JSON.parse(resp.replace(/\`\`\`json\s*/g,'').replace(/\`\`\`\s*/g,'').trim());
+    _kwUrlCache[kw] = links;
+    panel.innerHTML = renderKwUrlPanel(kw, links);
+  }catch(e){
+    panel.innerHTML = `<div class="kw-url-loading">링크를 불러오지 못했어요. (${e.message})</div>`;
+  }
+}
+
+function renderKwUrlPanel(kw, links){
+  const typeLabel = {
+    '법령원문':'법령', '가이드':'가이드', '연구보고서':'연구', '글로벌자료':'글로벌'
+  };
+  const typeColor = {
+    '법령원문':'#dbeafe;color:#1d4ed8', '가이드':'#dcfce7;color:#15803d',
+    '연구보고서':'#fef9c3;color:#a16207', '글로벌자료':'#f3e8ff;color:#7e22ce'
+  };
+  const items = links.map(l=>{
+    const domain = (()=>{ try{ return new URL(l.url).hostname.replace('www.',''); }catch(e){ return l.source||''; } })();
+    const initial = (l.source||domain).charAt(0).toUpperCase();
+    const typeKey = l.type||'';
+    const typeBadge = typeLabel[typeKey]
+      ? `<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:${(typeColor[typeKey]||'#f3f4f6;color:#374151').split(';')[0]};${(typeColor[typeKey]||'').includes('color')?'color:'+typeColor[typeKey].split('color:')[1]:''};margin-left:5px;">${typeLabel[typeKey]}</span>`
+      : '';
+    return `<div class="kw-url-item">
+      <div class="kw-url-favicon">${initial}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;margin-bottom:1px;">
+          <a class="kw-url-link" href="${l.url}" target="_blank" style="flex:none;max-width:100%;">${escHtml(l.title)}</a>${typeBadge}
+        </div>
+        <div class="kw-url-source">${escHtml(domain)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="kw-url-panel"><div class="kw-url-title">${escHtml(kw)}</div>${items}</div>`;
+}
+
+// 길게 누르기 — 키워드 삭제
+let _kwLongPressCtx = null;
+let _kwDeleteCtx = null;
+function startKwLongPress(uid, aKey, idx, kw){
+  cancelKwLongPress();
+  _kwLongPressCtx = {uid, aKey, idx, kw};
+  _kwLongPressTimer = setTimeout(()=>{
+    if(_kwLongPressCtx) openKwDeleteConfirm(_kwLongPressCtx);
+  }, 600);
+}
+function cancelKwLongPress(){
+  if(_kwLongPressTimer){ clearTimeout(_kwLongPressTimer); _kwLongPressTimer=null; }
+}
+function openKwDeleteConfirm({uid, aKey, idx, kw}){
+  _kwDeleteCtx = {uid, aKey, idx};
+  document.getElementById('kw-delete-kw-name').textContent = `"${kw}"`;
+  document.getElementById('kw-delete-modal').classList.remove('hidden');
+}
+function closeKwDeleteConfirm(){
+  document.getElementById('kw-delete-modal').classList.add('hidden');
+  _kwDeleteCtx = null;
+}
+function confirmKwDelete(){
+  if(!_kwDeleteCtx) return;
+  deleteKeyword(_kwDeleteCtx.uid, _kwDeleteCtx.aKey, _kwDeleteCtx.idx);
+  closeKwDeleteConfirm();
+}
+function deleteKeyword(uid, aKey, idx){
+  // aKey에서 실제 저장 위치 파싱
+  const realKey = toRealAKey(aKey);
+  const parts = realKey.split('_');
+  const artIdx = parseInt(parts[parts.length-1]);
+  const secKey = parts[parts.length-2];
+  const dateStr = parts.slice(0,parts.length-2).join('_');
+  const isWeekly = dateStr.startsWith('w_');
+
+  let article = null;
+  if(isWeekly){
+    const wk = dateStr.replace('w_','');
+    const wa = getWeeklyArchive();
+    article = wa[wk]?.sections?.[secKey]?.[artIdx];
+    if(!article) return;
+    article.keywords = (article.keywords||[]).filter((_,i)=>i!==idx);
+    saveWeeklyArchive(wa);
+  } else {
+    const arch = getArchive();
+    article = arch[dateStr]?.sections?.[secKey]?.[artIdx];
+    if(!article) return;
+    article.keywords = (article.keywords||[]).filter((_,i)=>i!==idx);
+    saveArchive(arch);
+  }
+  // DOM 갱신 — 키워드 영역만 교체
+  const kwSec = document.getElementById('kw-section-'+uid);
+  if(kwSec){
+    const newHtml = renderKeywords(uid, article.keywords||[], aKey);
+    kwSec.outerHTML = newHtml || '';
+  }
+  autoSyncToGist();
+}
 
 /* ── SPLASH ── */
 (function(){
