@@ -368,6 +368,19 @@
 
 <!-- DELETE CONFIRM MODAL -->
 <!-- DATE EDIT MODAL -->
+<!-- WEEK DELETE MODAL -->
+<div class="modal-overlay hidden" id="wk-delete-modal" onclick="if(event.target===this)closeWkDelete()">
+  <div class="modal-sheet" onclick="event.stopPropagation()" style="text-align:center;">
+    <div class="modal-handle"></div>
+    <div style="font-size:15px;font-weight:700;color:#111;margin-bottom:6px;">주차 삭제</div>
+    <div style="font-size:13px;color:#6b7280;margin-bottom:16px;line-height:1.5;"><span id="wk-delete-label" style="color:#111;font-weight:500;"></span>을 삭제하시겠습니까?<br><span style="font-size:11px;">해당 주차의 모든 기사가 삭제됩니다.</span></div>
+    <div style="display:flex;gap:8px;">
+      <button class="modal-close" style="flex:1;" onclick="closeWkDelete()">취소</button>
+      <button class="save-btn" style="flex:1;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;" onclick="confirmWkDelete()">삭제</button>
+    </div>
+  </div>
+</div>
+
 <!-- KW DELETE MODAL -->
 <div class="modal-overlay hidden" id="kw-delete-modal" onclick="if(event.target===this)closeKwDeleteConfirm()">
   <div class="modal-sheet" onclick="event.stopPropagation()" style="text-align:center;">
@@ -1971,7 +1984,8 @@ function showMergedWeekDetail(wk){
     });
 
     if(total === 0){
-      html += `<div class="empty-sec">이번 주 관련 뉴스가 없습니다</div>`;
+      html = html.slice(0, html.lastIndexOf('<div class="section-block">'));
+      return; // 기사 없는 섹션은 통째로 생략
     }
     html += `</div>`;
   });
@@ -2070,11 +2084,57 @@ function renderDateList(){
         });
       });
     });
-    return `<div class="archive-date-card" onclick="showWeeklyDetail('${wk}')">
+    return `<div class="archive-date-card"
+      onclick="showWeeklyDetail('${wk}')"
+      ontouchstart="startWkLongPress('${wk}','${label}')"
+      ontouchend="cancelWkLongPress()"
+      ontouchmove="cancelWkLongPress()"
+      onmousedown="startWkLongPress('${wk}','${label}')"
+      onmouseup="cancelWkLongPress()"
+      onmouseleave="cancelWkLongPress()">
       <div><div class="archive-date">${label}</div>
       <div class="archive-meta">기사 ${total}건${mc>0?' · <span class="memo-badge">메모 '+mc+'개</span>':''}</div></div>
       <div class="archive-arrow">${ICO.chevR}</div></div>`;
   }).join('');
+}
+
+/* ── WEEK DELETE ── */
+let _wkDeleteCtx = null;
+let _wkLongPressTimer = null;
+
+function startWkLongPress(wk, label){
+  cancelWkLongPress();
+  _wkLongPressTimer = setTimeout(()=>{
+    _wkDeleteCtx = {wk, label};
+    document.getElementById('wk-delete-label').textContent = label;
+    document.getElementById('wk-delete-modal').classList.remove('hidden');
+  }, 600);
+}
+function cancelWkLongPress(){
+  if(_wkLongPressTimer){ clearTimeout(_wkLongPressTimer); _wkLongPressTimer = null; }
+}
+function closeWkDelete(){
+  document.getElementById('wk-delete-modal').classList.add('hidden');
+  _wkDeleteCtx = null;
+}
+function confirmWkDelete(){
+  if(!_wkDeleteCtx) return;
+  const {wk} = _wkDeleteCtx;
+  // 주간 아카이브에서 삭제
+  const wa = getWeeklyArchive();
+  if(wa[wk]){ delete wa[wk]; saveWeeklyArchive(wa); }
+  // 해당 주차의 일간 아카이브도 삭제
+  const arch = getArchive();
+  Object.keys(arch).forEach(d=>{
+    const c = getWeekStart(d);
+    if(c === wk || normalizeWeekLabel(c,'') === normalizeWeekLabel(wk,'')){
+      delete arch[d];
+    }
+  });
+  saveArchive(arch);
+  autoSyncToGist();
+  closeWkDelete();
+  renderDateList();
 }
 
 function backToList(){
@@ -2521,16 +2581,26 @@ async function _autoGenKeywords(aKey, title, summary){
     if(!Array.isArray(keywords) || !keywords.length) return;
 
     // 아카이브에 저장
+    let saved = false;
     if(isWeekly){
       const wk = dateStr.replace('w_','');
       const wa = getWeeklyArchive();
-      if(wa[wk]?.sections?.[secKey]?.[artIdx]) wa[wk].sections[secKey][artIdx].keywords = keywords;
-      saveWeeklyArchive(wa);
+      if(wa[wk]?.sections?.[secKey]?.[artIdx]){
+        wa[wk].sections[secKey][artIdx].keywords = keywords;
+        saveWeeklyArchive(wa);
+        saved = true;
+      }
     } else {
       const arch = getArchive();
-      if(arch[dateStr]?.sections?.[secKey]?.[artIdx]) arch[dateStr].sections[secKey][artIdx].keywords = keywords;
-      saveArchive(arch);
+      if(arch[dateStr]?.sections?.[secKey]?.[artIdx]){
+        arch[dateStr].sections[secKey][artIdx].keywords = keywords;
+        saveArchive(arch);
+        saved = true;
+      }
     }
+    if(!saved) return; // 저장 실패 시 DOM 업데이트도 스킵
+    // Gist 동기화 — 저장 후 즉시 push해야 새로고침 시 유지됨
+    autoSyncToGist();
 
     // 현재 화면에 렌더된 카드 키워드 영역 업데이트 (모든 ctx suffix 순회)
     _CTX_LIST.forEach(cx=>{
