@@ -889,6 +889,10 @@ function newsCardHTML(dateStr, secKey, idx, it, s, ctx=''){
   const dateEditBtn = `<button class="del-btn" onclick="openDateEdit('${edKey}')" title="날짜 수정"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#9ca3af" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>`;
   const memoSection = `<div class="memo-area${hasMemo?'':' hidden'}" id="memo-area-${uid}">${renderMemoList(uid, memoList)}</div>`;
   const kwSection = renderKeywords(uid, it.keywords||[], aKey);
+  // 키워드 없는 기사 → 백그라운드 자동 생성 (렌더 직후)
+  if(!it.keywords || !it.keywords.length){
+    setTimeout(()=>_autoGenKeywords(aKey, it.title, it.summary), 100);
+  }
   return `<div class="news-card${isHBR?' hbr':''}" id="card-${uid}">
     <div class="news-top">
       <span class="news-dot" style="background:${s.color};"></span>
@@ -2487,6 +2491,72 @@ migrateWeekLabels();
 /* ── KEYWORDS ── */
 const _kwUrlCache = {}; // 키워드 → URL 결과 캐시
 const _kwStore = {};    // uid → {keywords, aKey} 저장소
+const _kwGenInProgress = new Set(); // 중복 생성 방지
+
+async function _autoGenKeywords(aKey, title, summary){
+  if(_kwGenInProgress.has(aKey)) return;
+  const apiKey = localStorage.getItem('hr_api_key');
+  if(!apiKey) return;
+  // 이미 저장된 키워드 있으면 스킵
+  const realKey = toRealAKey(aKey);
+  const parts = realKey.split('_');
+  const artIdx = parseInt(parts[parts.length-1]);
+  const secKey = parts[parts.length-2];
+  const dateStr = parts.slice(0,parts.length-2).join('_');
+  const isWeekly = dateStr.startsWith('w_');
+  const existing = isWeekly
+    ? getWeeklyArchive()[dateStr.replace('w_','')]?.sections?.[secKey]?.[artIdx]?.keywords
+    : getArchive()[dateStr]?.sections?.[secKey]?.[artIdx]?.keywords;
+  if(existing && existing.length) return;
+
+  _kwGenInProgress.add(aKey);
+  try{
+    const sys = '당신은 HR 전문 도우미입니다. JSON만 출력하세요.';
+    const prompt = `다음 HR 기사에서 담당자가 공부해야 할 핵심 키워드 3~5개를 추출해주세요.
+제목: ${title}
+요약: ${summary}
+순수 JSON 배열만 출력: ["키워드1","키워드2","키워드3"]`;
+    const resp = await callClaude(apiKey, sys, prompt, 300);
+    const keywords = JSON.parse(resp.replace(/\`\`\`json\s*/g,'').replace(/\`\`\`\s*/g,'').trim());
+    if(!Array.isArray(keywords) || !keywords.length) return;
+
+    // 아카이브에 저장
+    if(isWeekly){
+      const wk = dateStr.replace('w_','');
+      const wa = getWeeklyArchive();
+      if(wa[wk]?.sections?.[secKey]?.[artIdx]) wa[wk].sections[secKey][artIdx].keywords = keywords;
+      saveWeeklyArchive(wa);
+    } else {
+      const arch = getArchive();
+      if(arch[dateStr]?.sections?.[secKey]?.[artIdx]) arch[dateStr].sections[secKey][artIdx].keywords = keywords;
+      saveArchive(arch);
+    }
+
+    // 현재 화면에 렌더된 카드 키워드 영역 업데이트 (모든 ctx suffix 순회)
+    _CTX_LIST.forEach(cx=>{
+      const uid2 = cx ? aKey+cx : aKey;
+      const kwSec = document.getElementById('kw-section-'+uid2);
+      if(kwSec){
+        kwSec.outerHTML = renderKeywords(uid2, keywords, aKey) || `<div id="kw-section-${uid2}"></div>`;
+      } else {
+        // kw-section이 없으면 memo-area 앞에 삽입
+        const card = document.getElementById('card-'+uid2);
+        if(card){
+          const memoArea = card.querySelector('.memo-area');
+          if(memoArea){
+            const div = document.createElement('div');
+            div.innerHTML = renderKeywords(uid2, keywords, aKey);
+            memoArea.before(div.firstChild);
+          }
+        }
+      }
+    });
+  }catch(e){
+    // 조용히 실패 — 다음에 다시 시도
+  } finally {
+    _kwGenInProgress.delete(aKey);
+  }
+}
 
 function renderKeywords(uid, keywords, aKey){
   if(!keywords || !keywords.length) return '';
