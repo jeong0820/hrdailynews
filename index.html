@@ -409,6 +409,7 @@
         <option value="HR테크">HR테크</option>
         <option value="글로벌HR">글로벌 HR</option>
         <option value="HR인사이트">해외HR인사이트</option>
+        <option value="노무컴플라이">노무/컴플라이언스</option>
       </select>
     </div>
 
@@ -496,12 +497,13 @@ const ALL_SEC = {
   'HR테크':     { label:'HR테크',                  color:'#7c3aed', bg:'#f5f3ff' },
   '글로벌HR':   { label:'글로벌 HR',                  color:'#0891b2', bg:'#ecfeff' },
   'HR인사이트':  { label:'해외HR인사이트',              color:'#0369a1', bg:'#e0f2fe' },
+  '노무컴플라이': { label:'노무/컴플라이언스',             color:'#be185d', bg:'#fdf2f8' },
 };
 const DAILY_SEC   = { '고용정책': ALL_SEC['고용정책'] };
 const WEEKLY_SEC  = ALL_SEC;
-const ALL_ORDER   = ['고용정책','보상급여','성과관리','채용','인재개발','HR테크','글로벌HR','HR인사이트'];
+const ALL_ORDER   = ['고용정책','보상급여','성과관리','채용','인재개발','노무컴플라이','글로벌HR','HR테크','HR인사이트'];
 const DAILY_ORDER  = ['고용정책'];
-const WEEKLY_ORDER = ['고용정책','보상급여','성과관리','채용','인재개발','HR테크','글로벌HR','HR인사이트'];
+const WEEKLY_ORDER = ['고용정책','보상급여','성과관리','채용','인재개발','노무컴플라이','글로벌HR','HR테크','HR인사이트'];
 
 /* ── PROMPTS ── */
 const RSS_FEEDS = [
@@ -633,7 +635,7 @@ ${EXCLUDE_RULES}
 const SYS_WEEKLY = `당신은 대기업 HR 담당자를 위한 전문 뉴스 큐레이터입니다.
 수집된 기사 중 이번 주 HR 업계의 주요 트렌드·인사이트를 8개 섹션으로 분류·요약하세요.
 코드블록, 마크다운, 설명 없이 순수 JSON만 출력하세요:
-{"weekLabel":"MM월 N주차","sections":{"고용정책":[{"title":"제목","summary":"2-3문장 요약","source":"출처","url":"URL"}],"보상급여":[...],"성과관리":[...],"채용":[...],"인재개발":[...],"HR테크":[...],"글로벌HR":[...],"HR인사이트":[{"title":"영문 원제","summary":"한국어 2-3문장 요약","source":"출처","url":"URL"}]}}
+{"weekLabel":"YYYY년 MM월 N주차","sections":{"고용정책":[{"title":"제목","summary":"2-3문장 요약","source":"출처","url":"URL"}],"보상급여":[...],"성과관리":[...],"채용":[...],"인재개발":[...],"HR테크":[...],"글로벌HR":[...],"HR인사이트":[{"title":"영문 원제","summary":"한국어 2-3문장 요약","source":"출처","url":"URL"}],"노무컴플라이":[...]}}
 
 [주간 탭 선정 기준 — "트렌드·인사이트"]
 다음 조건 중 하나라도 해당하면 선택:
@@ -653,6 +655,7 @@ const SYS_WEEKLY = `당신은 대기업 HR 담당자를 위한 전문 뉴스 큐
 HR테크: HRMS·피플애널리틱스·AI 인사관리 트렌드, HR 소프트웨어 동향. M&A 후 HR 시스템 통합·HRMS 마이그레이션 사례도 포함.
 글로벌 HR: 한국 기업의 해외법인 인력운영·현지 노동법·외국인 고용허가·주재원 파견·보상 실무 이슈. 해외 기업 인수 후 현지 인력 통합·노동법 적용 이슈도 포함. 반드시 해외법인 또는 외국인 고용과 직접 관련된 기사만 포함. 단순 글로벌 트렌드나 해외 기업 사례는 해외HR인사이트 섹션으로.
 해외HR인사이트: SHRM·HR Dive·HR Executive 등 글로벌 HR 전문 매체의 트렌드·연구·칼럼. 최대 5건. 제목은 영문 원제 유지, 요약은 한국어로 작성.
+노무/컴플라이언스: 노동법·취업규칙·단체협약·부당해고·직장내 괴롭힘·산업재해·근로감독·노무관리 실무 이슈. 판례·행정해석·노동위원회 결정 포함.
 
 
 ${EXCLUDE_RULES}
@@ -661,7 +664,8 @@ ${EXCLUDE_RULES}
 2. 해외HR인사이트 섹션: [G-] 태그 영문 기사 중 최대 5건까지 선정 가능. 5건 초과 금지.
 3. 글로벌HR 섹션: 해외법인·외국인고용·주재원 직접 관련 기사 없으면 빈 배열 허용.
 4. 채용 섹션: 채용 프로세스·시장 트렌드 직접 관련 기사 없으면 빈 배열 허용.
-5. 나머지 6개 섹션: 관련 기사가 있으면 최소 1건 이상 선정.
+5. 노무컴플라이언스 섹션: 노동법·판례·노무관리 직접 관련 기사 없으면 빈 배열 허용.
+6. 나머지 6개 섹션: 관련 기사가 있으면 최소 1건 이상 선정.
 6. 섹션 간 동일 기사 중복 배치 금지.
 
 [기사 중요도 우선순위 — 같은 섹션 내 여러 기사가 있을 때 이 순서로 선택]
@@ -1537,9 +1541,10 @@ async function callClaude(key, sys, prompt){
 
 function getWeekLabel(){
   const monday = new Date(weekKey);
+  const year = monday.getFullYear();
   const month = monday.getMonth()+1;
   const weekOfMonth = Math.ceil(monday.getDate()/7);
-  return `${month}월 ${weekOfMonth}주차`;
+  return `${year}년 ${month}월 ${weekOfMonth}주차`;
 }
 
 function setLastBar(ts){
@@ -1620,10 +1625,7 @@ function renderDateList(){
   } else {
     weeklyEl.innerHTML = weekDates.map(wk=>{
       const item = weeklyArchive[wk];
-      const label = item.weekLabel || (() => {
-        const d = new Date(wk);
-        return `${d.getMonth()+1}월 ${Math.ceil(d.getDate()/7)}주차`;
-      })();
+      const label = item.weekLabel || (() => { const d = new Date(wk); return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${Math.ceil(d.getDate()/7)}주차`; })();
       const total = WEEKLY_ORDER.reduce((s,k)=>s+((item.sections&&item.sections[k])||[]).length,0);
       // 주간 기사 URL 수집 후 URL 기준 중복 제거 메모 합산
       const wkUrlSeen = new Set();
@@ -1782,7 +1784,7 @@ function showTopicDetail(secKey, type){
     weeks.forEach(wk=>{
       const items = ((getWeeklyArchive()[wk].sections&&getWeeklyArchive()[wk].sections[secKey])||[]);
       if(!items.length) return;
-      const label = getWeeklyArchive()[wk].weekLabel||wk;
+      const label = getWeeklyArchive()[wk]?.weekLabel || (() => { const d=new Date(wk); return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${Math.ceil(d.getDate()/7)}주차`; })();
       html += `<div style="font-size:11px;color:var(--muted);margin:10px 0 5px;font-weight:500;">${label}</div>`;
       html += items.map((it,idx)=>newsCardHTML('w_'+wk,secKey,idx,it,s,'tp')).join('');
     });
@@ -1832,7 +1834,7 @@ function showMergedWeekDetail(wk){
 
   const weekLabel = weeklyData?.weekLabel || (() => {
     const d = new Date(wk);
-    return `${d.getMonth()+1}월 ${Math.ceil(d.getDate()/7)}주차`;
+    return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${Math.ceil(d.getDate()/7)}주차`;
   })();
   document.getElementById('top-title').textContent = weekLabel;
 
@@ -2173,8 +2175,11 @@ function openAddUrl(){
   _addUrlTab = currentPage === 'weekly' ? 'weekly' : 'today';
   document.getElementById('add-url-input').value = '';
   document.getElementById('add-url-status').textContent = '';
+  document.getElementById('add-url-status').style.color = '';
   document.getElementById('add-url-preview').classList.add('hidden');
   document.getElementById('add-url-confirm-btn').disabled = true;
+  // 날짜 input 오늘 날짜로 초기화
+  document.getElementById('add-url-date').value = todayKey;
   switchAddUrlTab(_addUrlTab);
   document.getElementById('add-url-modal').classList.remove('hidden');
 }
@@ -2281,7 +2286,12 @@ function confirmAddUrl(){
     const secKey = document.getElementById('add-url-section').value;
     const targetWk = getWeekStart(chosenDate);
     const wa = getWeeklyArchive();
-    if(!wa[targetWk]) wa[targetWk] = {sections:{}, weekLabel: getWeekLabel(), fetchedAt: new Date().toISOString()};
+    // chosenDate 기반 주차 라벨 생성
+    const wkLabelForDate = (() => {
+      const d = new Date(chosenDate);
+      return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${Math.ceil(d.getDate()/7)}주차`;
+    })();
+    if(!wa[targetWk]) wa[targetWk] = {sections:{}, weekLabel: wkLabelForDate, fetchedAt: new Date().toISOString()};
     if(!wa[targetWk].sections[secKey]) wa[targetWk].sections[secKey] = [];
     wa[targetWk].sections[secKey].push(article);
     saveWeeklyArchive(wa);
@@ -2292,7 +2302,6 @@ function confirmAddUrl(){
     } else {
       switchPage('date');
     }
-    if(currentPage !== 'weekly') switchPage('weekly');
   }
 
   autoSyncToGist();
