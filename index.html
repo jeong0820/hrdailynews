@@ -2485,18 +2485,21 @@ function confirmAddUrl(){
 migrateWeekLabels();
 
 /* ── KEYWORDS ── */
-const _kwUrlCache = {}; // 키워드 → URL 결과 캐시 (앱 세션 동안 유지)
+const _kwUrlCache = {}; // 키워드 → URL 결과 캐시
+const _kwStore = {};    // uid → {keywords, aKey} 저장소
 
 function renderKeywords(uid, keywords, aKey){
   if(!keywords || !keywords.length) return '';
+  // 키워드를 전역 맵에 저장 (onclick 인라인 이스케이프 문제 방지)
+  _kwStore[uid] = {keywords, aKey};
   const pills = keywords.map((kw,i)=>
     `<span class="kw-pill"
       id="kwpill-${uid}-${i}"
-      onclick="toggleKwUrl('${uid}','${aKey}',${i},${JSON.stringify(kw).replace(/'/g,'\')})"
-      ontouchstart="startKwLongPress('${uid}','${aKey}',${i},${JSON.stringify(kw).replace(/'/g,'\'')})"
+      onclick="toggleKwUrl('${uid}',${i})"
+      ontouchstart="startKwLongPress('${uid}',${i})"
       ontouchend="cancelKwLongPress()"
       ontouchmove="cancelKwLongPress()"
-      onmousedown="startKwLongPress('${uid}','${aKey}',${i},${JSON.stringify(kw).replace(/'/g,'\'')})"
+      onmousedown="startKwLongPress('${uid}',${i})"
       onmouseup="cancelKwLongPress()"
       onmouseleave="cancelKwLongPress()"
     >${escHtml(kw)}</span>`
@@ -2512,7 +2515,11 @@ let _kwActiveUid = null;
 let _kwActiveIdx = null;
 let _kwLongPressTimer = null;
 
-async function toggleKwUrl(uid, aKey, idx, kw){
+async function toggleKwUrl(uid, idx){
+  const store = _kwStore[uid]; if(!store) return;
+  const {keywords, aKey} = store;
+  const kw = keywords[idx]; if(!kw) return;
+
   // 같은 키워드 다시 클릭 → 닫기
   if(_kwActiveUid === uid && _kwActiveIdx === idx){
     document.getElementById('kwpill-'+uid+'-'+idx)?.classList.remove('kw-active');
@@ -2544,14 +2551,9 @@ async function toggleKwUrl(uid, aKey, idx, kw){
     return;
   }
 
-  // 로딩 상태
   panel.innerHTML = `<div class="kw-url-loading">🔍 "${escHtml(kw)}" 학습 링크를 찾는 중...</div>`;
-
   const apiKey = localStorage.getItem('hr_api_key');
-  if(!apiKey){
-    panel.innerHTML = `<div class="kw-url-loading">API 키를 설정해주세요.</div>`;
-    return;
-  }
+  if(!apiKey){ panel.innerHTML = `<div class="kw-url-loading">API 키를 설정해주세요.</div>`; return; }
 
   try{
     const sys = '당신은 HR 전문 학습 도우미입니다. JSON만 출력하세요.';
@@ -2571,7 +2573,7 @@ async function toggleKwUrl(uid, aKey, idx, kw){
 순수 JSON 배열만 출력 (설명 없음):
 [{"title":"페이지 제목","url":"https://도메인/경로","source":"사이트명","type":"법령원문|가이드|연구보고서|글로벌자료"}]`;
     const resp = await callClaude(apiKey, sys, prompt, 600);
-    const links = JSON.parse(resp.replace(/\`\`\`json\s*/g,'').replace(/\`\`\`\s*/g,'').trim());
+    const links = JSON.parse(resp.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim());
     _kwUrlCache[kw] = links;
     panel.innerHTML = renderKwUrlPanel(kw, links);
   }catch(e){
@@ -2610,9 +2612,10 @@ function renderKwUrlPanel(kw, links){
 // 길게 누르기 — 키워드 삭제
 let _kwLongPressCtx = null;
 let _kwDeleteCtx = null;
-function startKwLongPress(uid, aKey, idx, kw){
+function startKwLongPress(uid, idx){
   cancelKwLongPress();
-  _kwLongPressCtx = {uid, aKey, idx, kw};
+  const store2 = _kwStore[uid];
+  _kwLongPressCtx = {uid, aKey: store2?.aKey||'', idx, kw: store2?.keywords?.[idx]||''};
   _kwLongPressTimer = setTimeout(()=>{
     if(_kwLongPressCtx) openKwDeleteConfirm(_kwLongPressCtx);
   }, 600);
