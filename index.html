@@ -358,7 +358,7 @@
     <div class="modal-handle"></div>
     <div style="font-size:15px;font-weight:700;color:#111;margin-bottom:6px;">기사 날짜 수정</div>
     <div id="date-edit-article-title" style="font-size:12px;color:#6b7280;margin-bottom:14px;line-height:1.4;max-height:40px;overflow:hidden;text-overflow:ellipsis;"></div>
-    <input type="date" id="date-edit-input" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:11px;font-size:14px;font-family:inherit;margin-bottom:14px;text-align:center;">
+    <div style="display:flex;justify-content:center;margin-bottom:14px;"><input type="date" id="date-edit-input" style="padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:11px;font-size:15px;font-family:inherit;text-align:center;max-width:200px;width:auto;display:block;box-sizing:border-box;"></div>
     <div style="display:flex;gap:8px;">
       <button class="modal-close" style="flex:1;" onclick="closeDateEdit()">취소</button>
       <button class="save-btn" style="flex:1;" onclick="confirmDateEdit()">저장</button>
@@ -858,7 +858,7 @@ function newsCardHTML(dateStr, secKey, idx, it, s, ctx=''){
   // 수동 추가 기사에만 날짜 수정 버튼 표시
   const edKey = 'ed_'+uid;
   _rcStore[edKey] = {aKey, uid, dateStr, secKey, isWeekly, currentDate: it.date||dateStr};
-  const dateEditBtn = it.manuallyAdded ? `<button class="del-btn" onclick="openDateEdit('${edKey}')" title="날짜 수정" style="color:#6b7280;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>` : '';
+  const dateEditBtn = `<button class="del-btn" onclick="openDateEdit('${edKey}')" title="날짜 수정" style="color:#6b7280;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>`;
   const memoSection = `<div class="memo-area${hasMemo?'':' hidden'}" id="memo-area-${uid}">${renderMemoList(uid, memoList)}</div>`;
   return `<div class="news-card${isHBR?' hbr':''}" id="card-${uid}">
     <div class="news-top">
@@ -868,7 +868,7 @@ function newsCardHTML(dateStr, secKey, idx, it, s, ctx=''){
     <p class="news-summary">${escHtml(it.summary||'')}</p>
     <div class="news-footer">
       <span class="news-source${isHBR?' hbr-src':''}">${escHtml(it.source||'')}</span>
-      <div class="footer-actions">${linkHtml}${moveBtn}${dateEditBtn}${deleteBtn}${memoBtn}</div>
+      <div class="footer-actions">${linkHtml}${dateEditBtn}${moveBtn}${deleteBtn}${memoBtn}</div>
     </div>
     ${memoSection}
   </div>`;
@@ -1931,6 +1931,72 @@ function showMergedWeekDetail(wk){
 
   detail.innerHTML = html;
   document.getElementById('page-date').scrollTo({top:0,behavior:'smooth'});
+}
+
+function renderDateList(){
+  const weeklyArchive = getWeeklyArchive();
+  const archive = getArchive();
+  const detail = document.getElementById('date-detail');
+  detail.classList.add('hidden');
+  const memos = getMemos();
+  const weeklyEl = document.getElementById('date-list-weekly');
+  weeklyEl.classList.remove('hidden');
+
+  // 주간 아카이브 키 + 일간 아카이브에서 주차 키 추출 (수동 추가 기사 포함)
+  const allWkKeys = new Set(Object.keys(weeklyArchive));
+  Object.keys(archive).forEach(d => allWkKeys.add(getWeekStart(d)));
+  const sortedWks = [...allWkKeys].sort((a,b)=>b.localeCompare(a));
+
+  if(!sortedWks.length){
+    weeklyEl.innerHTML = `<div class="empty-wrap"><div class="empty-icon-box">${ICO.emptyCal}</div><div class="empty-title">저장된 주간 브리핑이 없어요</div><div class="empty-sub">뉴스를 받으면 주차별로 저장됩니다</div></div>`;
+    return;
+  }
+
+  weeklyEl.innerHTML = sortedWks.map(wk=>{
+    const item = weeklyArchive[wk];
+    // 주간 기사 수
+    const weeklyTotal = item ? WEEKLY_ORDER.reduce((s,k)=>s+((item.sections&&item.sections[k])||[]).length,0) : 0;
+    // 해당 주차의 일간 기사 수 (고용정책, 중복 URL 제외)
+    const weeklyUrls = new Set();
+    if(item) WEEKLY_ORDER.forEach(k=>((item.sections&&item.sections[k])||[]).forEach(it=>{ if(it.url) weeklyUrls.add(it.url); }));
+    let dailyTotal = 0;
+    Object.keys(archive).filter(d=>getWeekStart(d)===wk).forEach(d=>{
+      DAILY_ORDER.forEach(k=>{
+        ((archive[d].sections&&archive[d].sections[k])||[]).forEach(it=>{
+          if(!it.url || !weeklyUrls.has(it.url)) dailyTotal++;
+        });
+      });
+    });
+    const total = weeklyTotal + dailyTotal;
+    const label = item ? normalizeWeekLabel(wk, item.weekLabel||'') : normalizeWeekLabel(wk, '');
+    const wkUrlSeen = new Set();
+    let mc = 0;
+    if(item) WEEKLY_ORDER.forEach(secKey=>{
+      ((item.sections&&item.sections[secKey])||[]).forEach((art,idx)=>{
+        const aKey = articleKey('w_'+wk, secKey, idx);
+        const memoItems = getMemoList(memos, aKey);
+        if(!memoItems.length) return;
+        const dedupeKey = art.url || aKey;
+        if(!wkUrlSeen.has(dedupeKey)){ wkUrlSeen.add(dedupeKey); mc += memoItems.length; }
+      });
+    });
+    // 일간 메모도 포함
+    Object.keys(archive).filter(d=>getWeekStart(d)===wk).forEach(d=>{
+      DAILY_ORDER.forEach(k=>{
+        ((archive[d].sections&&archive[d].sections[k])||[]).forEach((art,idx)=>{
+          const aKey = articleKey(d, k, idx);
+          const memoItems = getMemoList(memos, aKey);
+          if(!memoItems.length) return;
+          const dedupeKey = art.url || aKey;
+          if(!wkUrlSeen.has(dedupeKey)){ wkUrlSeen.add(dedupeKey); mc += memoItems.length; }
+        });
+      });
+    });
+    return `<div class="archive-date-card" onclick="showWeeklyDetail('${wk}')">
+      <div><div class="archive-date">${label}</div>
+      <div class="archive-meta">기사 ${total}건${mc>0?' · <span class="memo-badge">메모 '+mc+'개</span>':''}</div></div>
+      <div class="archive-arrow">${ICO.chevR}</div></div>`;
+  }).join('');
 }
 
 function backToList(){
