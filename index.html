@@ -1847,7 +1847,7 @@ function renderTopicList(){
       if(!memoUrlsSeen.has(dedupeKey)){ memoUrlsSeen.add(dedupeKey); mc += memoItems.length; }
     });
 
-    const detailType = isDaily ? 'daily' : 'merged';
+    const detailType = 'merged'; // 두 아카이브 모두 표시하는 merged 타입 통일
     html += `<div class="archive-date-card" style="border-left:3px solid ${s.color};" onclick="showTopicDetail('${key}','${detailType}')">
       <div>
         <div class="archive-date">${s.label}</div>
@@ -1880,9 +1880,9 @@ function showTopicDetail(secKey, type){
 
     weeks.forEach(wk=>{
       const items = ((wa[wk].sections&&wa[wk].sections[secKey])||[]);
-      // 어제 탭 섹션(DAILY_ORDER)이면 해당 주차 일간 기사도 포함
+      // 모든 섹션에서 일간 아카이브도 체크 (기존 데이터 호환)
       const dailyItems = [];
-      if(DAILY_ORDER.includes(secKey)){
+      {
         Object.keys(getArchive()).sort((a,b)=>b.localeCompare(a)).forEach(dateStr=>{
           const c = getWeekStart(dateStr);
           if(c === wk || normalizeWeekLabel(c,'') === normalizeWeekLabel(wk,'')){
@@ -1904,8 +1904,8 @@ function showTopicDetail(secKey, type){
         html += newsCardHTML(dateStr, secKey, idx, it, s, 'tp');
       });
     });
-    // 주간 아카이브 없는 날짜의 일간 기사 (DAILY_ORDER 섹션)
-    if(DAILY_ORDER.includes(secKey)){
+    // 주간 아카이브 없는 날짜의 일간 기사 (모든 섹션)
+    {
       Object.keys(getArchive()).sort((a,b)=>b.localeCompare(a)).forEach(dateStr=>{
         const wk = getWeekStart(dateStr);
         if(!wa[wk]){
@@ -1988,12 +1988,13 @@ function showMergedWeekDetail(wk){
     const isDaily = DAILY_ORDER.includes(key);
     const isWeekly = WEEKLY_ORDER.includes(key);
 
-    // 주간 기사
-    const weeklyItems = isWeekly ? (weeklyData?.sections?.[key])||[] : [];
+    // 주간 기사 (isWeekly 제한 없이 weeklyData에서 직접 조회 — 기존 데이터 호환)
+    const weeklyItems = (weeklyData?.sections?.[key])||[];
     // 일간 기사 (어제탭 섹션)
     const weeklyUrls = new Set(weeklyItems.map(it=>it.url).filter(Boolean));
     const dailyItems = [];
-    if(isDaily){
+    // 일간 기사 (isDaily 제한 없이 모든 섹션 조회 — daily 아카이브에 있으면 표시)
+    {
       dailyDates.forEach(dateStr=>{
         const items = (archive[dateStr]?.sections?.[key])||[];
         items.forEach((it,idx)=>{
@@ -2061,7 +2062,8 @@ function renderDateList(){
   weeklyEl.innerHTML = sortedWks.map(wk=>{
     const item = weeklyArchive[wk];
     // 주간 기사 수
-    const weeklyTotal = item ? WEEKLY_ORDER.reduce((s,k)=>s+((item.sections&&item.sections[k])||[]).length,0) : 0;
+    // 아카이브에 있는 모든 섹션 기사 합산 (구버전 데이터도 포함)
+    const weeklyTotal = item ? Object.values(item.sections||{}).reduce((s,arr)=>s+(Array.isArray(arr)?arr.length:0),0) : 0;
     // 해당 주차의 일간 기사 수 (고용정책, 중복 URL 제외)
     const weeklyUrls = new Set();
     if(item) WEEKLY_ORDER.forEach(k=>((item.sections&&item.sections[k])||[]).forEach(it=>{ if(it.url) weeklyUrls.add(it.url); }));
