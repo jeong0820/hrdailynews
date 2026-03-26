@@ -1828,9 +1828,10 @@ function renderTopicList(){
     const isDaily = DAILY_ORDER.includes(key);
     const isWeekly = WEEKLY_ORDER.includes(key);
 
+    // 두 아카이브 모두 해당 키 기사 수 합산 (기존 데이터 구조 호환)
     let total = 0;
-    if(isDaily) allDailyDates.forEach(d=>{ total += ((archive[d].sections&&archive[d].sections[key])||[]).length; });
-    if(isWeekly) allWeeklyDates.forEach(wk=>{ total += ((weeklyArchive[wk].sections&&weeklyArchive[wk].sections[key])||[]).length; });
+    allDailyDates.forEach(d=>{ total += ((archive[d].sections&&archive[d].sections[key])||[]).length; });
+    allWeeklyDates.forEach(wk=>{ total += ((weeklyArchive[wk].sections&&weeklyArchive[wk].sections[key])||[]).length; });
     if(total === 0) return;
 
     const memoUrlsSeen = new Set();
@@ -1871,24 +1872,22 @@ function showTopicDetail(secKey, type){
     const wa = getWeeklyArchive();
     const weeks = Object.keys(wa).sort((a,b)=>b.localeCompare(a));
 
-    // 전체 주간 URL 사전 수집 — 어제탭 중복 제거용
+    // 전체 주간 URL 사전 수집 — 일간 기사 중복 제거용
     const allWeeklyUrls = new Set();
-    if(secKey === '고용정책'){
-      weeks.forEach(wk=>{
-        ((wa[wk].sections&&wa[wk].sections[secKey])||[]).forEach(it=>{ if(it.url) allWeeklyUrls.add(it.url); });
-      });
-    }
+    weeks.forEach(wk=>{
+      ((wa[wk].sections&&wa[wk].sections[secKey])||[]).forEach(it=>{ if(it.url) allWeeklyUrls.add(it.url); });
+    });
 
     weeks.forEach(wk=>{
       const items = ((wa[wk].sections&&wa[wk].sections[secKey])||[]);
-      // 고용정책: 해당 주차 일간 기사 포함 (전체 주간 URL 기준으로 중복 제거)
+      // 어제 탭 섹션(DAILY_ORDER)이면 해당 주차 일간 기사도 포함
       const dailyItems = [];
-      if(secKey === '고용정책'){
+      if(DAILY_ORDER.includes(secKey)){
         Object.keys(getArchive()).sort((a,b)=>b.localeCompare(a)).forEach(dateStr=>{
-          if(getWeekStart(dateStr) === wk){
+          const c = getWeekStart(dateStr);
+          if(c === wk || normalizeWeekLabel(c,'') === normalizeWeekLabel(wk,'')){
             const dItems = (getArchive()[dateStr].sections&&getArchive()[dateStr].sections[secKey])||[];
             dItems.forEach((it,idx)=>{
-              // 주간탭에 동일 URL 있으면 제외
               if(it.url && allWeeklyUrls.has(it.url)) return;
               dailyItems.push({it, idx, dateStr});
             });
@@ -1905,13 +1904,13 @@ function showTopicDetail(secKey, type){
         html += newsCardHTML(dateStr, secKey, idx, it, s, 'tp');
       });
     });
-    // 주간 아카이브 없는 주의 일간 기사
-    if(secKey === '고용정책'){
+    // 주간 아카이브 없는 날짜의 일간 기사 (DAILY_ORDER 섹션)
+    if(DAILY_ORDER.includes(secKey)){
       Object.keys(getArchive()).sort((a,b)=>b.localeCompare(a)).forEach(dateStr=>{
         const wk = getWeekStart(dateStr);
         if(!wa[wk]){
           const items2 = (getArchive()[dateStr].sections&&getArchive()[dateStr].sections[secKey])||[];
-          const filtered = items2.filter((it,_)=>!it.url||!allWeeklyUrls.has(it.url));
+          const filtered = items2.filter(it=>!it.url||!allWeeklyUrls.has(it.url));
           if(!filtered.length) return;
           const label3 = new Date(dateStr).toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'});
           html += `<div style="font-size:11px;color:var(--muted);margin:10px 0 5px;font-weight:500;">${label3}</div>`;
