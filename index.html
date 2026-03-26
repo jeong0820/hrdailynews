@@ -572,6 +572,8 @@ const WEEKLY_SEC  = ALL_SEC;
 const ALL_ORDER   = ['고용정책','보상급여','성과관리','채용','인재개발','노무컴플라이','글로벌HR','HR테크','HR인사이트'];
 const DAILY_ORDER  = ['고용정책','노무컴플라이'];
 const WEEKLY_ORDER = ['보상급여','성과관리','채용','인재개발','글로벌HR','HR테크','HR인사이트'];
+// 날짜별·주제별 아카이브 표시 순서 (DAILY_ORDER + WEEKLY_ORDER 통합)
+const ARCHIVE_DISPLAY_ORDER = ['고용정책','노무컴플라이','보상급여','성과관리','채용','인재개발','글로벌HR','HR테크','HR인사이트'];
 
 /* ── PROMPTS ── */
 const RSS_FEEDS = [
@@ -932,13 +934,16 @@ function newsCardHTML(dateStr, secKey, idx, it, s, ctx=''){
     setTimeout(()=>_autoGenKeywords(aKey, it.title, it.summary), 100);
   }
   // 고용정책·노무컴플라이 섹션에 타임라인 버튼 추가
-  const tlBtn = (secKey === '고용정책' || secKey === '노무컴플라이')
-    ? `<button class="tl-view-btn" id="tl-btn-${uid}" onclick="toggleTimeline('${uid}',${JSON.stringify(it.title||'')},${JSON.stringify(it.summary||'')})">
+  // 정책 타임라인 버튼 — 특수문자 안전하게 _tlStore에 저장 후 uid만 onclick에 전달
+  let tlBtn = '';
+  if(secKey === '고용정책' || secKey === '노무컴플라이'){
+    _tlStore[uid] = {title: it.title||'', summary: it.summary||''};
+    tlBtn = `<button class="tl-view-btn" id="tl-btn-${uid}" onclick="toggleTimeline('${uid}')">
         <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/></svg>
         정책 타임라인 보기
        </button>
-       <div id="tl-panel-${uid}" class="hidden"></div>`
-    : '';
+       <div id="tl-panel-${uid}" class="hidden"></div>`;
+  }
   return `<div class="news-card${isHBR?' hbr':''}" id="card-${uid}">
     <div class="news-top">
       <span class="news-dot" style="background:${s.color};"></span>
@@ -1816,39 +1821,18 @@ function renderTopicList(){
   const memos = getMemos();
   let html = '';
 
-  // ① 어제 탭 2개 섹션 (고용정책·노무컴플라이) — 일간 아카이브에서 집계
-  DAILY_ORDER.forEach(key=>{
-    const s = DAILY_SEC[key];
-    let dailyTotal = 0;
-    allDailyDates.forEach(d=>{ dailyTotal += ((archive[d].sections&&archive[d].sections[key])||[]).length; });
-    if(dailyTotal === 0) return;
-    const memoUrlsSeen = new Set();
-    let mc = 0;
-    Object.keys(memos).forEach(k=>{
-      const baseKey = k.replace(/_(dt|dw|tp|sr)$/, '');
-      const p = baseKey.split('_');
-      if(p[p.length-2] !== key) return;
-      const memoItems = getMemoList(memos, k);
-      if(!memoItems.length) return;
-      const url = getArticleUrl(baseKey);
-      const dedupeKey = url || baseKey;
-      if(!memoUrlsSeen.has(dedupeKey)){ memoUrlsSeen.add(dedupeKey); mc += memoItems.length; }
-    });
-    html += `<div class="archive-date-card" style="border-left:3px solid ${s.color};" onclick="showTopicDetail('${key}','daily')">
-      <div>
-        <div class="archive-date">${s.label} <span style="font-size:10px;color:var(--muted);">어제 탭</span></div>
-        <div class="archive-meta">기사 ${dailyTotal}건${mc>0?' · <span class="memo-badge">메모 '+mc+'개</span>':''}</div>
-      </div>
-      <div class="archive-arrow">${ICO.chevR}</div>
-    </div>`;
-  });
+  // ARCHIVE_DISPLAY_ORDER 순으로 섹션 카드 표시
+  ARCHIVE_DISPLAY_ORDER.forEach(key=>{
+    const s = ALL_SEC[key];
+    if(!s) return;
+    const isDaily = DAILY_ORDER.includes(key);
+    const isWeekly = WEEKLY_ORDER.includes(key);
 
-  // ② 주간 탭 7개 섹션
-  WEEKLY_ORDER.forEach(key=>{
-    const s = WEEKLY_SEC[key];
-    let weeklyTotal = 0;
-    allWeeklyDates.forEach(wk=>{ weeklyTotal += ((weeklyArchive[wk].sections&&weeklyArchive[wk].sections[key])||[]).length; });
-    if(weeklyTotal === 0) return;
+    let total = 0;
+    if(isDaily) allDailyDates.forEach(d=>{ total += ((archive[d].sections&&archive[d].sections[key])||[]).length; });
+    if(isWeekly) allWeeklyDates.forEach(wk=>{ total += ((weeklyArchive[wk].sections&&weeklyArchive[wk].sections[key])||[]).length; });
+    if(total === 0) return;
+
     const memoUrlsSeen = new Set();
     let mc = 0;
     Object.keys(memos).forEach(k=>{
@@ -1861,10 +1845,12 @@ function renderTopicList(){
       const dedupeKey = url || baseKey;
       if(!memoUrlsSeen.has(dedupeKey)){ memoUrlsSeen.add(dedupeKey); mc += memoItems.length; }
     });
-    html += `<div class="archive-date-card" style="border-left:3px solid ${s.color};" onclick="showTopicDetail('${key}','merged')">
+
+    const detailType = isDaily ? 'daily' : 'merged';
+    html += `<div class="archive-date-card" style="border-left:3px solid ${s.color};" onclick="showTopicDetail('${key}','${detailType}')">
       <div>
         <div class="archive-date">${s.label}</div>
-        <div class="archive-meta">기사 ${weeklyTotal}건${mc>0?' · <span class="memo-badge">메모 '+mc+'개</span>':''}</div>
+        <div class="archive-meta">기사 ${total}건${mc>0?' · <span class="memo-badge">메모 '+mc+'개</span>':''}</div>
       </div>
       <div class="archive-arrow">${ICO.chevR}</div>
     </div>`;
@@ -1996,40 +1982,38 @@ function showMergedWeekDetail(wk){
 
   let html = `<button class="back-btn" onclick="backToList()">${ICO.chevL} 아카이브</button>`;
 
-  // ① 주간 탭 7개 섹션
-  WEEKLY_ORDER.forEach(key=>{
-    const s = WEEKLY_SEC[key];
-    const weeklyItems = (weeklyData?.sections?.[key])||[];
-    const total = weeklyItems.length;
+  // ARCHIVE_DISPLAY_ORDER 순으로 섹션 표시
+  ARCHIVE_DISPLAY_ORDER.forEach(key=>{
+    const s = ALL_SEC[key];
+    if(!s) return;
+    const isDaily = DAILY_ORDER.includes(key);
+    const isWeekly = WEEKLY_ORDER.includes(key);
+
+    // 주간 기사
+    const weeklyItems = isWeekly ? (weeklyData?.sections?.[key])||[] : [];
+    // 일간 기사 (어제탭 섹션)
+    const weeklyUrls = new Set(weeklyItems.map(it=>it.url).filter(Boolean));
+    const dailyItems = [];
+    if(isDaily){
+      dailyDates.forEach(dateStr=>{
+        const items = (archive[dateStr]?.sections?.[key])||[];
+        items.forEach((it,idx)=>{
+          if(it.url && weeklyUrls.has(it.url)) return;
+          dailyItems.push({it, idx, dateStr});
+        });
+      });
+    }
+
+    const total = weeklyItems.length + dailyItems.length;
     if(total === 0) return; // 기사 없는 섹션 생략
+
     html += `<div class="section-block"><div class="section-header">
       <span class="section-badge" style="background:${s.bg};color:${s.color};">${s.label}</span>
       <span class="section-count">${total}건</span>
     </div>`;
-    html += weeklyItems.map((it,idx)=>newsCardHTML('w_'+wk,key,idx,it,s,'dw')).join('');
-    html += `</div>`;
-  });
-
-  // ② 어제 탭 2개 섹션 (고용정책·노무컴플라이) — 해당 주차 일간 기사 표시
-  DAILY_ORDER.forEach(key=>{
-    const s = DAILY_SEC[key];
-    const dailyItems = [];
-    // 주간에 이미 있는 URL 제외 (고용정책이 주간에도 있었던 경우 대비)
-    const weeklyUrls = new Set(
-      (weeklyData?.sections?.[key]||[]).map(it=>it.url).filter(Boolean)
-    );
-    dailyDates.forEach(dateStr=>{
-      const items = (archive[dateStr]?.sections?.[key])||[];
-      items.forEach((it,idx)=>{
-        if(it.url && weeklyUrls.has(it.url)) return;
-        dailyItems.push({it, idx, dateStr});
-      });
-    });
-    if(!dailyItems.length) return; // 기사 없으면 섹션 생략
-    html += `<div class="section-block"><div class="section-header">
-      <span class="section-badge" style="background:${s.bg};color:${s.color};">${s.label}</span>
-      <span class="section-count">${dailyItems.length}건</span>
-    </div>`;
+    if(weeklyItems.length){
+      html += weeklyItems.map((it,idx)=>newsCardHTML('w_'+wk,key,idx,it,s,'dw')).join('');
+    }
     dailyItems.forEach(({it,idx,dateStr})=>{
       const dlabel = new Date(dateStr).toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'});
       html += `<div style="font-size:10px;color:var(--muted);margin:6px 0 3px;padding-left:2px;">${dlabel}</div>`;
@@ -2857,8 +2841,12 @@ function deleteKeyword(uid, aKey, idx){
 
 /* ── POLICY TIMELINE ── */
 const _tlCache = {}; // uid → timeline data
+const _tlStore = {};  // uid → {title, summary}
 
-async function toggleTimeline(uid, title, summary){
+async function toggleTimeline(uid){
+  const stored = _tlStore[uid] || {};
+  const title = stored.title || '';
+  const summary = stored.summary || '';
   const panel = document.getElementById('tl-panel-'+uid);
   const btn   = document.getElementById('tl-btn-'+uid);
   if(!panel || !btn) return;
