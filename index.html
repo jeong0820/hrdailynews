@@ -322,7 +322,7 @@
     <div class="loading-wrap">
       <div class="loading-spinner"></div>
       <div class="loading-text">주간 트렌드를 분석하는 중...</div>
-      <div class="loading-sub">8개 섹션 분류 중 · 잠시 기다려주세요</div>
+      <div class="loading-sub">7개 섹션 분류 중 · 잠시 기다려주세요</div>
     </div>
   </div>
   <div id="weekly-empty">
@@ -1687,7 +1687,7 @@ async function fetchNews(){
       document.getElementById('weekly-news').classList.add('hidden');
       const weekLabel = getWeekLabel();
       const weeklyResp = await callClaude(anthropicKey, SYS_WEEKLY,
-        `이번 주(${weekLabel}) HR 트렌드·인사이트 분석\n\n아래 기사 중 중장기 트렌드·인사이트 성격의 기사를 8개 섹션으로 분류·요약해주세요.\n\n${articleList}${globalList}`);
+        `이번 주(${weekLabel}) HR 트렌드·인사이트 분석\n\n아래 기사 중 중장기 트렌드·인사이트 성격의 기사를 7개 섹션으로 분류·요약해주세요.\n\n${articleList}${globalList}`);
       const weeklyParsed = JSON.parse(weeklyResp.replace(/\`\`\`json\s*/g,'').replace(/\`\`\`\s*/g,'').trim());
       // 빈 섹션 안전망 — 글로벌HR 제외한 섹션에 기사가 없으면 articleList에서 최대한 채우기
       if(!weeklyParsed.sections) weeklyParsed.sections = {};
@@ -1816,43 +1816,55 @@ function renderTopicList(){
   const memos = getMemos();
   let html = '';
 
-  // 8개 섹션 통합 표시 (구분 없음)
-  WEEKLY_ORDER.forEach(key=>{
-    const s = WEEKLY_SEC[key];
-    // 주간 기사 수
-    let weeklyTotal = 0;
-    allWeeklyDates.forEach(wk=>{ weeklyTotal += ((weeklyArchive[wk].sections&&weeklyArchive[wk].sections[key])||[]).length; });
-    // 고용정책 섹션은 일간 기사도 합산
+  // ① 어제 탭 2개 섹션 (고용정책·노무컴플라이) — 일간 아카이브에서 집계
+  DAILY_ORDER.forEach(key=>{
+    const s = DAILY_SEC[key];
     let dailyTotal = 0;
-    if(key === '고용정책'){
-      allDailyDates.forEach(d=>{ dailyTotal += ((archive[d].sections&&archive[d].sections[key])||[]).length; });
-    }
-    const total = weeklyTotal + dailyTotal;
-    if(total === 0 && !allWeeklyDates.length) return; // 데이터 없으면 스킵
-    // 메모 카운트 — URL 기준 중복 제거 후 메모 항목 수 합산
+    allDailyDates.forEach(d=>{ dailyTotal += ((archive[d].sections&&archive[d].sections[key])||[]).length; });
+    if(dailyTotal === 0) return;
     const memoUrlsSeen = new Set();
     let mc = 0;
     Object.keys(memos).forEach(k=>{
       const baseKey = k.replace(/_(dt|dw|tp|sr)$/, '');
       const p = baseKey.split('_');
-      const kSecKey = p[p.length-2];
-      if(kSecKey !== key) return;
+      if(p[p.length-2] !== key) return;
       const memoItems = getMemoList(memos, k);
       if(!memoItems.length) return;
-      // URL로 중복 체크 — 동일 URL 기사는 한쪽만 카운트
       const url = getArticleUrl(baseKey);
       const dedupeKey = url || baseKey;
-      if(!memoUrlsSeen.has(dedupeKey)){
-        memoUrlsSeen.add(dedupeKey);
-        mc += memoItems.length; // 기사 단위가 아닌 메모 항목 수 합산
-      }
+      if(!memoUrlsSeen.has(dedupeKey)){ memoUrlsSeen.add(dedupeKey); mc += memoItems.length; }
     });
-    const extraLabel = key==='고용정책' && dailyTotal>0
-      ? ` <span style="font-size:10px;color:var(--muted);">어제·주간 통합</span>` : '';
+    html += `<div class="archive-date-card" style="border-left:3px solid ${s.color};" onclick="showTopicDetail('${key}','daily')">
+      <div>
+        <div class="archive-date">${s.label} <span style="font-size:10px;color:var(--muted);">어제 탭</span></div>
+        <div class="archive-meta">기사 ${dailyTotal}건${mc>0?' · <span class="memo-badge">메모 '+mc+'개</span>':''}</div>
+      </div>
+      <div class="archive-arrow">${ICO.chevR}</div>
+    </div>`;
+  });
+
+  // ② 주간 탭 7개 섹션
+  WEEKLY_ORDER.forEach(key=>{
+    const s = WEEKLY_SEC[key];
+    let weeklyTotal = 0;
+    allWeeklyDates.forEach(wk=>{ weeklyTotal += ((weeklyArchive[wk].sections&&weeklyArchive[wk].sections[key])||[]).length; });
+    if(weeklyTotal === 0) return;
+    const memoUrlsSeen = new Set();
+    let mc = 0;
+    Object.keys(memos).forEach(k=>{
+      const baseKey = k.replace(/_(dt|dw|tp|sr)$/, '');
+      const p = baseKey.split('_');
+      if(p[p.length-2] !== key) return;
+      const memoItems = getMemoList(memos, k);
+      if(!memoItems.length) return;
+      const url = getArticleUrl(baseKey);
+      const dedupeKey = url || baseKey;
+      if(!memoUrlsSeen.has(dedupeKey)){ memoUrlsSeen.add(dedupeKey); mc += memoItems.length; }
+    });
     html += `<div class="archive-date-card" style="border-left:3px solid ${s.color};" onclick="showTopicDetail('${key}','merged')">
       <div>
-        <div class="archive-date">${s.label}${extraLabel}</div>
-        <div class="archive-meta">기사 ${total}건${mc>0?' · <span class="memo-badge">메모 '+mc+'개</span>':''}</div>
+        <div class="archive-date">${s.label}</div>
+        <div class="archive-meta">기사 ${weeklyTotal}건${mc>0?' · <span class="memo-badge">메모 '+mc+'개</span>':''}</div>
       </div>
       <div class="archive-arrow">${ICO.chevR}</div>
     </div>`;
@@ -1984,61 +1996,47 @@ function showMergedWeekDetail(wk){
 
   let html = `<button class="back-btn" onclick="backToList()">${ICO.chevL} 아카이브</button>`;
 
+  // ① 주간 탭 7개 섹션
   WEEKLY_ORDER.forEach(key=>{
     const s = WEEKLY_SEC[key];
     const weeklyItems = (weeklyData?.sections?.[key])||[];
-
-    // 고용정책: 주간 URL 먼저 수집 후 일간 기사 중복 제거
-    const weeklyUrls = new Set(weeklyItems.map(it=>it.url).filter(Boolean));
-    const dailyItems = [];
-    if(key === '고용정책'){
-      dailyDates.forEach(dateStr=>{
-        const items = (archive[dateStr]?.sections?.[key])||[];
-        items.forEach((it,idx)=>{
-          if(it.url && weeklyUrls.has(it.url)) return; // 주간탭에 있으면 제외
-          dailyItems.push({it, idx, dateStr});
-        });
-      });
-    }
-
-    const total = weeklyItems.length + dailyItems.length;
+    const total = weeklyItems.length;
+    if(total === 0) return; // 기사 없는 섹션 생략
     html += `<div class="section-block"><div class="section-header">
       <span class="section-badge" style="background:${s.bg};color:${s.color};">${s.label}</span>
       <span class="section-count">${total}건</span>
     </div>`;
+    html += weeklyItems.map((it,idx)=>newsCardHTML('w_'+wk,key,idx,it,s,'dw')).join('');
+    html += `</div>`;
+  });
 
-    if(weeklyItems.length){
-      html += weeklyItems.map((it,idx)=>newsCardHTML('w_'+wk,key,idx,it,s,'dw')).join('');
-    }
+  // ② 어제 탭 2개 섹션 (고용정책·노무컴플라이) — 해당 주차 일간 기사 표시
+  DAILY_ORDER.forEach(key=>{
+    const s = DAILY_SEC[key];
+    const dailyItems = [];
+    // 주간에 이미 있는 URL 제외 (고용정책이 주간에도 있었던 경우 대비)
+    const weeklyUrls = new Set(
+      (weeklyData?.sections?.[key]||[]).map(it=>it.url).filter(Boolean)
+    );
+    dailyDates.forEach(dateStr=>{
+      const items = (archive[dateStr]?.sections?.[key])||[];
+      items.forEach((it,idx)=>{
+        if(it.url && weeklyUrls.has(it.url)) return;
+        dailyItems.push({it, idx, dateStr});
+      });
+    });
+    if(!dailyItems.length) return; // 기사 없으면 섹션 생략
+    html += `<div class="section-block"><div class="section-header">
+      <span class="section-badge" style="background:${s.bg};color:${s.color};">${s.label}</span>
+      <span class="section-count">${dailyItems.length}건</span>
+    </div>`;
     dailyItems.forEach(({it,idx,dateStr})=>{
       const dlabel = new Date(dateStr).toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'});
       html += `<div style="font-size:10px;color:var(--muted);margin:6px 0 3px;padding-left:2px;">${dlabel}</div>`;
       html += newsCardHTML(dateStr, key, idx, it, s, 'dw');
     });
-
-    if(total === 0){
-      html = html.slice(0, html.lastIndexOf('<div class="section-block">'));
-      return; // 기사 없는 섹션은 통째로 생략
-    }
     html += `</div>`;
   });
-
-  // 주간 아카이브 없고 일간만 있는 경우
-  if(!weeklyData && dailyDates.length){
-    html = `<button class="back-btn" onclick="backToList()">${ICO.chevL} 아카이브</button>`;
-    const s = DAILY_SEC['고용정책'];
-    html += `<div class="section-block"><div class="section-header">
-      <span class="section-badge" style="background:${s.bg};color:${s.color};">${s.label}</span>
-    </div>`;
-    dailyDates.forEach(dateStr=>{
-      const items = (archive[dateStr]?.sections?.['고용정책'])||[];
-      if(!items.length) return;
-      const dlabel = new Date(dateStr).toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'});
-      html += `<div style="font-size:10px;color:var(--muted);margin:6px 0 3px;padding-left:2px;">${dlabel}</div>`;
-      html += items.map((it,idx)=>newsCardHTML(dateStr,'고용정책',idx,it,s,'dw')).join('');
-    });
-    html += `</div>`;
-  }
 
   detail.innerHTML = html;
   document.getElementById('page-date').scrollTo({top:0,behavior:'smooth'});
