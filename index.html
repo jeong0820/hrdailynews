@@ -845,6 +845,10 @@ function switchPage(page){
   document.getElementById('top-title').textContent = titles[page];
   if(page==='date')  renderDateList();
   if(page==='topic') renderTopicList();
+  if(page==='weekly'){
+    const wd = getWeeklyArchive()[weekKey];
+    if(wd) renderWeekly(wd);
+  }
   if(isSearch) setTimeout(()=>document.getElementById('search-input').focus(),100);
 }
 
@@ -1707,6 +1711,9 @@ async function fetchNews(){
       });
       weeklyArchive[weekKey] = {...weeklyParsed, fetchedAt, weekLabel};
       saveWeeklyArchive(weeklyArchive);
+      renderWeekly(weeklyArchive[weekKey]);
+    } else {
+      // 이미 이번 주 데이터 있으면 그대로 렌더 (weekly-news visible 보장)
       renderWeekly(weeklyArchive[weekKey]);
     }
 
